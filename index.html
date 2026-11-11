@@ -3,320 +3,42 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#f8f8f5">
-<meta name="page-type" content="software">
-<meta name="site-kind" content="software">
-<meta name="description" content="仮想の配管とバルブの流れを観察・操作できる配管可視化シミュレーター。Web AR 対応端末では3Dモデルを空間に配置できます。">
-<title>WallPipe AR — 配管可視化シミュレーター</title>
+<meta name="theme-color" content="#f4f6f2">
+<meta name="description" content="WallPipe ARは、仮想の配管を現実空間に配置し、手の動きでバルブの開度を変える実験アプリです。">
+<title>WallPipe AR | 空間に配管を配置する</title>
 <style>
-/* WallPipe AR — inspection workspace */
-:root{font-family:Inter,"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,system-ui,sans-serif;color:#273337;--ink:#273337;--muted:#66777a;--line:#ccd3d0;--paper:#f5f5f0;--panel:#f8f8f5;--accent:#087184;--accent-dark:#075766;--alert:#a15432}
-*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;background:#e5e7e3}body{overflow:hidden}button,input{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,#ar:focus-visible{outline:3px solid #d78a3a;outline-offset:2px}button:disabled{opacity:.5;cursor:not-allowed}button{transition:background-color .13s,color .13s,border-color .13s,transform .1s}button:active{transform:translateY(1px)}
-#app{position:relative;width:100%;height:100dvh;min-height:320px;isolation:isolate;overflow:hidden;background:#e5e7e3}
-#wall{position:absolute;inset:0;background-color:#e5e7e3;background-image:linear-gradient(#c4ccc839 1px,transparent 1px),linear-gradient(90deg,#c4ccc839 1px,transparent 1px);background-size:120px 120px}
-#wall:after{content:'シミュレーション背景';position:absolute;left:20px;bottom:18px;font:11px ui-monospace,SFMono-Regular,Consolas,monospace;color:#8b9999;letter-spacing:.04em}
-#camera{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none}
-#ar{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:grab}#ar:active{cursor:grabbing}
-#modelStage{position:absolute;inset:0;z-index:2;display:none;background:#e5e7e3}#modelStage.show{display:block}#model3d{width:100%;height:100%;--poster-color:#e5e7e3}
-#modelMessage{position:absolute;left:42%;top:46%;transform:translate(-50%,-50%);z-index:3;background:#f6f6f2;border:1px solid var(--line);padding:14px 18px;color:var(--ink);font-size:13px;max-width:260px;text-align:center}#modelMessage.hidden{display:none}
-#modelNotice{position:absolute;left:30px;bottom:22px;max-width:530px;font-size:11px;line-height:1.6;color:#526367;pointer-events:none}
-.ar-button{position:absolute;left:45%;bottom:78px;transform:translateX(-50%);z-index:3;background:var(--accent);color:#fff;border:1px solid var(--accent);border-radius:3px;padding:14px 20px;font-weight:700;font-size:13px;box-shadow:none;min-height:48px;white-space:nowrap}
-.ar-button:hover{background:var(--accent-dark)}.ar-button:active{transform:translate(-50%,1px)}
-#top{position:absolute;z-index:6;top:0;left:0;right:0;height:70px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 27px;border-bottom:1px solid var(--line);background:#f8f8f5}
-.brand{display:flex;align-items:center;gap:13px;min-width:0}.brandMark{width:29px;height:31px;display:grid;grid-template-columns:repeat(3,4px);gap:4px;align-items:center;justify-content:center;border:1px solid #7d999d;flex:none}.brandMark i{height:18px;width:4px;background:#36636a;display:block}.brandMark i:nth-child(2){height:25px}h1{font-size:17px;font-weight:750;letter-spacing:-.035em;line-height:1.1;margin:0}h1 span{font-size:13px;color:var(--accent);font-weight:700;letter-spacing:-.015em}.brand p{font-size:11px;line-height:1.4;margin:3px 0 0;color:var(--muted)}.topTools{display:flex;align-items:center;gap:18px}.viewCaption{font-size:11px;letter-spacing:.035em;color:#56696a;display:flex;align-items:center;gap:8px}.viewCaption:before{content:'';width:7px;height:7px;border-radius:50%;background:#4d918c}
-#viewSwitch{min-width:135px;background:#263a40;border:1px solid #263a40;color:#fff;font-weight:700;font-size:12px;padding:12px 14px;border-radius:3px}#viewSwitch:hover{background:#385057}#viewSwitch[aria-pressed=true]{background:#126c79;border-color:#126c79}
-#cameraStatus{position:absolute;z-index:4;left:30px;top:94px;display:flex;align-items:center;gap:8px;color:#3f5557;font-size:12px;font-weight:600;background:#f9faf7e8;border:1px solid #c3cfcc;padding:9px 12px;max-width:min(460px,calc(100vw - 390px))}.statusDot{width:7px;height:7px;display:inline-block;background:#a8733b;border-radius:50%;flex:none}#cameraStatusText{line-height:1.45}
-#hint{position:absolute;z-index:3;bottom:20px;left:30px;max-width:480px;font-size:12px;color:#4c6263;background:#f4f5f0d9;border:1px solid #cdd5d2;padding:8px 11px;pointer-events:none}
-#cross{position:absolute;left:calc((100% - 360px)/2);top:51%;transform:translate(-50%,-50%);z-index:1;color:#526c6d88;font:24px ui-monospace,Consolas,monospace;pointer-events:none}
-#bottom{position:absolute;z-index:7;right:0;top:70px;bottom:0;width:360px;display:flex;flex-direction:column;background:var(--panel);border-left:1px solid #c9d0cd;color:var(--ink);overflow:hidden}
-.panelHeader{padding:23px 24px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px;flex:none}.kicker{font:10px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.09em;color:#667b7e;margin:0 0 7px}#panelTitle{margin:0;font-size:19px;font-weight:750;letter-spacing:-.03em}.panelSummary{margin:5px 0 0;font:11px ui-monospace,SFMono-Regular,Consolas,monospace;color:#617378}#panelToggle{display:none}
-#panelBody{overflow-y:auto;overscroll-behavior:contain;flex:1;min-height:0;padding:0 24px 24px;scrollbar-color:#b5c4c0 transparent;scrollbar-width:thin}
-.panelSection{padding:20px 0 22px;border-bottom:1px solid var(--line)}.sectionLabel{font-size:11px;font-weight:750;color:#687879;letter-spacing:.045em;margin:0 0 12px}
-.modes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}button{border-radius:3px;border:1px solid #b8c7c4;color:#263a3d;background:#fbfcf9;padding:10px 9px;font-size:12px;min-height:43px}button:hover{background:#e7edeb}button[aria-pressed=true]{background:#e3eeec;border-color:#0f7281;color:#125466;box-shadow:inset 0 -2px 0 #0e7180}button:focus-visible{position:relative;z-index:1}
-#detail{border-bottom:1px solid var(--line);padding:19px 0 20px}.titleRow{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}#detailName{font-size:16px;font-weight:750;line-height:1.5;letter-spacing:-.02em}#badge{border-left:3px solid #23766e;color:#25645e;font-size:11px;font-weight:700;padding:4px 0 4px 9px;line-height:1.45;white-space:nowrap}#badge.is-closed{border-color:#a15432;color:#9a4d31}#detailText{font-size:12px;line-height:1.85;margin:8px 0 0;color:#657475}
-.control{display:grid;grid-template-columns:100px 1fr auto;gap:10px;align-items:center;margin:14px 0}.control label{font-size:12px;color:#405456}.control output{font:12px ui-monospace,SFMono-Regular,Consolas,monospace;color:#36565c;text-align:right;min-width:35px}.control input{min-width:0;width:100%;accent-color:var(--accent);height:24px;cursor:pointer}
-.row.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.row.actions button{width:100%;min-height:44px}.row.actions .primary{background:var(--accent);color:white;border-color:var(--accent)}.row.actions .primary:hover{background:var(--accent-dark)}.row.actions button[aria-pressed=true]{background:#e3eeec;color:#146977;border-color:#0f7281}
-footer{padding-top:16px;font-size:11px;color:#718080;line-height:1.75}footer strong{font-weight:700;color:#617274}
-#modal{position:absolute;inset:0;z-index:30;display:none;align-items:center;justify-content:center;background:#122126a8;padding:20px}#modal.open{display:flex}.dialog{max-width:480px;max-height:min(86dvh,650px);overflow-y:auto;width:100%;background:#f9faf7;border:1px solid #b6c4c0;padding:28px 30px;color:var(--ink);box-shadow:0 20px 80px #18292e55}.dialog h2{margin:0 0 12px;font-size:21px;letter-spacing:-.02em}.dialog p,.dialog li{font-size:13px;line-height:1.9;color:#485e60}.dialog ul{padding-left:21px}.dialog button{margin-top:15px;width:100%;background:#263a40;color:white;border-color:#263a40}
-#toast{display:none;position:absolute;z-index:12;left:30px;bottom:77px;max-width:min(480px,calc(100% - 400px));background:#fff8f1;color:#79452d;border:1px solid #d7a88e;padding:12px 16px;font-size:12px;line-height:1.5}#toast.visible{display:block}
-@media(max-width:767px){
-#top{height:62px;padding:0 15px;padding-top:env(safe-area-inset-top);height:calc(62px + env(safe-area-inset-top))}.brand{gap:9px}.brandMark{width:25px;height:27px}h1{font-size:15px}h1 span{font-size:12px}.brand p{font-size:10px}.viewCaption{display:none}#viewSwitch{min-width:110px;padding:10px 11px;font-size:11px;min-height:43px}
-#wall:after{bottom:calc(env(safe-area-inset-bottom) + 105px);left:15px}
-#bottom{left:0;right:0;top:auto;bottom:0;width:100%;border-left:none;border-top:1px solid #b8c6c2;max-height:72dvh;padding-bottom:env(safe-area-inset-bottom)}
-#bottom.collapsed{max-height:none;height:auto}#bottom.collapsed #panelBody{display:none}#bottom:not(.collapsed){max-height:72dvh}
-.panelHeader{padding:12px 16px 11px}.kicker{font-size:9px;margin-bottom:4px}#panelTitle{font-size:15px}.panelSummary{font-size:10px;margin-top:3px}#panelToggle{display:block;min-height:42px;padding:9px 12px;border:1px solid #9cb7b3;background:#eef4f2;font-size:12px;font-weight:700}
-#panelBody{padding:0 17px 24px}.panelSection{padding:14px 0 16px}.sectionLabel{margin-bottom:9px}
-#cross{left:50%;top:42%}#hint{left:12px;bottom:calc(env(safe-area-inset-bottom) + 100px);padding:7px 10px;max-width:calc(100vw - 24px);font-size:10px}#cameraStatus{left:12px;top:calc(72px + env(safe-area-inset-top));padding:7px 9px;max-width:calc(100vw - 24px);font-size:11px}
-#modelStage{bottom:0}#modelMessage{left:50%;top:39%}#modelNotice{left:13px;right:13px;bottom:calc(env(safe-area-inset-bottom) + 130px);font-size:10px;max-width:none}
-.ar-button{left:50%;bottom:calc(env(safe-area-inset-bottom) + 175px);font-size:12px;padding:11px 14px;min-height:44px}
-#toast{left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom) + 108px);max-width:none}
-}
-@media(max-width:370px){#viewSwitch{min-width:96px;font-size:10px;padding:9px 7px}.brand p{font-size:9px}h1{font-size:14px}.brandMark{display:none}}
-@media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}button:active{transform:none}.ar-button:active{transform:translateX(-50%)}}
-
-/* v0.5 — spatial inspection controls */
-.surfaceGroup{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.surfaceGroup button{font-weight:700}
-.scanMeta{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px;font-size:11px;color:var(--muted)}.scanMeta span{line-height:1.6}.scanMeta button{font-size:11px;padding:8px 10px;min-height:38px;flex:none}
-.floorRow{justify-content:flex-start}.floorRow label{white-space:nowrap}.floorRow select{border:1px solid #b8c7c4;background:#fff;color:var(--ink);font:inherit;min-height:38px;min-width:98px;padding:4px 8px}
-.scanBtn{width:100%;margin-top:12px;min-height:46px!important;background:var(--accent)!important;color:#fff!important;border-color:var(--accent)!important;font-weight:750}
-.smallNote{color:var(--muted);font-size:10px;line-height:1.55;margin:9px 0 0}
-#altitudeInfo{word-break:break-word;font-variant-numeric:tabular-nums}
-#hint{max-width:min(580px,calc(100vw - 390px));color:#213e42;font-weight:600}
-.terminalStatus{font:11px/1.75 ui-monospace,SFMono-Regular,Consolas,monospace;color:#476267;margin:9px 0 0;overflow-wrap:anywhere}
-#systemScheme{margin-top:12px}
-#cameraStatus{max-width:min(700px,calc(100vw - 390px))}
-@media(max-width:767px){#hint{max-width:calc(100vw - 24px)}#cameraStatus{max-width:calc(100vw - 24px)}.scanMeta{flex-wrap:wrap}.scanMeta button{flex:none}}
-
-/* Spatial parallax test is distinct from the screen-space overlay. */
-#spatialEntry{position:absolute;z-index:6;top:143px;left:30px;padding:11px 13px;color:#fff;background:#087184;border:1px solid #076276;border-radius:3px;text-decoration:none;font-size:12px;font-weight:700;line-height:1.4;max-width:calc(100vw - 390px)}
-#spatialEntry:hover{background:#075766}
-@media(max-width:767px){#spatialEntry{top:calc(122px + env(safe-area-inset-top));left:12px;font-size:11px;max-width:calc(100vw - 24px);padding:9px 11px}}
-
-/* Spatial placement prototype: separate from the 2D camera overlay. */
-#spatialNav{position:absolute;z-index:6;left:30px;top:145px;display:inline-block;background:#263a40;color:#fff;border:1px solid #263a40;padding:12px 15px;text-decoration:none;font-size:12px;font-weight:700;line-height:1.25}
-#spatialNav:hover{background:#37535a}#spatialNav:focus-visible{outline:3px solid #d78a3a;outline-offset:3px}
-@media(max-width:767px){#spatialNav{left:12px;top:calc(137px + env(safe-area-inset-top));font-size:11px;padding:10px 12px}}
-.gestureEntry{display:block;text-decoration:none;border:1px solid #9db7b4;background:#e4efeb;color:#145c68;padding:12px 13px;font-size:13px;font-weight:750;min-height:44px}.gestureEntry:hover{background:#d6e7e3}.gestureEntry:focus-visible{outline:3px solid #d58c31;outline-offset:2px}
+:root{font-family:system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;color:#24393c;--ink:#24393c;--muted:#5b6d6f;--line:#c9d3cd;--green:#0b6b78}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#f4f6f2}
+a{color:inherit}a:focus-visible{outline:3px solid #cb812b;outline-offset:4px}
+.top{border-bottom:1px solid var(--line);height:65px;display:flex;align-items:center;justify-content:space-between;padding:0 clamp(18px,5vw,70px);font-size:14px;font-weight:750}
+.top small{font-size:10px;letter-spacing:.08em;font-weight:500;color:var(--muted)}
+main{max-width:1300px;margin:auto;display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,340px);gap:clamp(30px,6vw,105px);align-items:center;min-height:calc(100dvh - 130px);padding:50px clamp(18px,5vw,70px)}
+.kicker{font:11px ui-monospace,Consolas,monospace;color:var(--green);margin:0 0 15px;letter-spacing:.04em}
+h1{font-size:clamp(32px,5vw,68px);letter-spacing:-.06em;line-height:1.14;margin:0 0 24px;max-width:700px}
+.lede{font-size:clamp(15px,1.6vw,18px);line-height:1.9;color:#516567;max-width:590px;margin:0 0 28px}
+.start{display:inline-flex;justify-content:center;align-items:center;gap:18px;background:var(--green);border:1px solid var(--green);text-decoration:none;color:#fff;min-height:54px;padding:12px 24px;font-weight:700;font-size:15px}
+.start:hover{background:#074c56}.start:active{background:#083c44}
+.detail{margin:17px 0 0;color:var(--muted);font-size:12px;line-height:1.8}.stepbox{border-left:1px solid #a6b9b4;padding:7px 0 7px 28px}.stepbox h2{font-size:15px;margin:0 0 16px}.step{padding:0 0 18px;border-bottom:1px solid var(--line);margin-bottom:18px;display:grid;grid-template-columns:36px 1fr;gap:8px}.step:last-child{border:0;margin:0;padding:0}
+.no{font:12px ui-monospace,Consolas,monospace;color:var(--green);padding-top:3px}.step strong{font-size:14px}.step p{font-size:12px;line-height:1.75;color:var(--muted);margin:5px 0 0}
+footer{border-top:1px solid var(--line);padding:20px clamp(18px,5vw,70px);font-size:11px;color:var(--muted);line-height:1.7}
+@media(max-width:760px){.top{height:58px}main{grid-template-columns:1fr;min-height:0;padding:55px 20px 50px;gap:45px}h1{font-size:37px}.stepbox{padding-left:18px}.start{width:100%}}
 </style>
-<script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@4.4.0/dist/model-viewer.min.js"></script>
-<script src="js/piping-engine.js"></script>
 </head>
 <body>
-<main id="app">
-<div id="wall" aria-hidden="true"></div>
-<video id="camera" autoplay muted playsinline aria-label="カメラ映像"></video>
-<canvas id="ar" tabindex="0" aria-label="設備の配管設計規則に基づいて自動生成した模式図。Enterで透視開始、左右キーでバルブを選択、Enterで開閉。ドラッグで移動。"></canvas>
-<div id="modelStage" aria-label="3D配管・AR配置ビュー">
-<model-viewer id="model3d" src="assets/water-11-1.glb" ar ar-modes="webxr scene-viewer quick-look" ar-placement="wall" camera-controls touch-action="pan-y" environment-image="neutral" shadow-intensity=".18" camera-orbit="0deg 72deg 4.5m" field-of-view="32deg" alt="バルブ2個の3D配管モデル">
-<button class="ar-button" slot="ar-button" type="button">壁に3Dモデルを配置</button>
-</model-viewer>
-<div id="modelMessage" role="status">3Dモデルを読み込んでいます…</div>
-<div id="modelNotice">3D/ARは固定サンプルの模型です。2Dのランダム生成や流路計算とは連動しません。実物配管は検出しません。</div>
-</div>
-<div id="cross" aria-hidden="true">＋</div>
-<header id="top">
-<div class="brand"><div class="brandMark" aria-hidden="true"><i></i><i></i><i></i></div><div><h1>WallPipe <span>AR</span></h1><p>配管可視化シミュレーター</p></div></div>
-<div class="topTools"><span class="viewCaption" id="viewCaption">2D 模式図</span><button id="viewSwitch" type="button" aria-pressed="false">3D / AR に切替</button></div>
-</header>
-<div id="cameraStatus" role="status"><span class="statusDot"></span><span id="cameraStatusText">仮想壁を表示中・実物配管は検出しません</span></div>
-<a id="spatialEntry" href="./spatial-test.html">空間に配管を固定して見る <span aria-hidden="true">↗</span></a>
-<a id="spatialNav" href="./spatial-test.html">空間固定ARを試す</a>
-<div id="hint">画面をタップして透視開始 ／ バルブを選択して開閉</div>
-<section id="bottom" class="collapsed" aria-labelledby="panelTitle">
-<div class="panelHeader"><div><p class="kicker">CONTROL / 01</p><h2 id="panelTitle">表示・操作</h2><p id="panelSummary" class="panelSummary" role="status" aria-live="polite">SCAN 000 ｜ 待機</p></div><button id="panelToggle" type="button" aria-controls="panelBody" aria-expanded="false">操作を開く</button></div>
-<div id="panelBody">
-<div class="panelSection"><p class="sectionLabel">空間固定AR × 手操作</p><a class="gestureEntry" href="./ar-hand.html">3D配管のバルブを手で操作する <span aria-hidden="true">↗</span></a><p class="smallNote">8th Wallの空間追跡とMediaPipeの手認識を一体化した実験版。iPhone実機での動作・接触精度は未検証です。</p></div>
-<div class="panelSection"><p class="sectionLabel">手操作の実験</p><a class="gestureEntry" href="./gesture-test.html">手でバルブを操作する <span aria-hidden="true">↗</span></a><p class="smallNote">手の認識は2Dカメラ合成で検証中。空間固定ARとはまだ連動していません。</p></div>
-<div class="panelSection explore"><p class="sectionLabel">観察する面</p><div class="surfaceGroup" role="group" aria-label="観察対象の面"><button type="button" data-surface="wall" aria-pressed="true">壁</button><button type="button" data-surface="floor" aria-pressed="false">床</button><button type="button" data-surface="ceiling" aria-pressed="false">天井</button></div><div class="scanMeta"><span id="surfaceStatus" role="status">手動設定：壁</span><button type="button" id="sensorBtn">傾きで自動切替</button></div><div class="scanMeta floorRow"><label for="floorLevel">現在の階</label><select id="floorLevel"><option value="B1">地下1階</option><option value="1" selected>1階</option><option value="2">2階</option><option value="3">3階</option><option value="4">4階</option><option value="5">5階以上</option></select></div><p class="smallNote">位置・形状は仮想データです。床下・壁内・天井裏に実際にある配管は検知しません。</p><button type="button" id="newScanBtn" class="primary scanBtn">新しい配管を透視</button></div>
-<div class="panelSection"><p class="sectionLabel">設備の種類</p><div class="modes" role="group" aria-label="表示する設備"><button data-mode="water" aria-pressed="true">給水設備</button><button data-mode="air" aria-pressed="false">空調設備</button><button data-mode="plant" aria-pressed="false">工場配管</button></div><p id="systemScheme" class="smallNote" role="status">主管から使用機器へ分岐し、枝管ごとに止水します。</p><p id="terminalStatus" class="terminalStatus" role="status" aria-live="polite">供給先：3 / 3</p></div>
-<div id="detail"><p class="sectionLabel">選択したバルブ</p><div class="titleRow"><span id="detailName">ボールバルブ / V-01</span><span id="badge">開・通過</span></div><p id="detailText">バルブを選択すると開閉できます。流体の進行方向を観察してください。</p></div>
-<div class="panelSection"><p class="sectionLabel">透視表示</p><div class="control"><label for="opacity">透過度</label><input id="opacity" type="range" min="25" max="100" value="76"><output id="opacityValue" for="opacity">76%</output></div><div class="control"><label for="zoom">表示倍率</label><input id="zoom" type="range" min="65" max="150" value="100"><output id="zoomValue" for="zoom">100%</output></div></div>
-<div class="panelSection"><p class="sectionLabel">高度（参考）</p><div class="scanMeta"><button type="button" id="altitudeBtn">高度を取得</button><span id="altitudeInfo" role="status">未取得</span></div><p class="smallNote">高度は階数の判定に使用しません。位置はアプリからサーバーへ送信しません。測位処理は端末側に依存します。</p></div>
-<div class="panelSection"><p class="sectionLabel">表示操作</p><div class="row actions"><button class="primary" id="camBtn">カメラを起動</button><button id="flowBtn" aria-pressed="true">流体表示：ON</button><button id="resetBtn">位置を初期化</button><button id="helpBtn">操作ガイドを見る</button></div></div>
-<footer><strong>DEMO v0.5</strong>　用途別の構成規則に基づく教育用模式図です。流量は簡略化計算で実設計に使えません。3D/ARは固定モデルで非連動です。</footer>
-</div>
+<header class="top"><span>WallPipe AR</span><small>SPATIAL HAND CONTROL · EXPERIMENT</small></header>
+<main>
+<section>
+<p class="kicker">WORLD-TRACKED PIPE NETWORK</p>
+<h1>壁に配管を配置し、<br>手で流れを変える。</h1>
+<p class="lede">カメラに絵を重ねるのではなく、空間の一点に立体配管を置く。横へ回り込んで側面を見ながら、手をかざしてバルブを操作するARの実験版です。</p>
+<a class="start" href="./ar-hand.html">空間固定ARを起動 <span aria-hidden="true">→</span></a>
+<p class="detail" id="support">iPhoneはSafariを推奨。カメラへの許可とインターネット接続が必要です。<br>実際の壁内配管を検出するものではありません。</p>
 </section>
-<div id="toast" role="status" aria-live="polite"></div>
-<div id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-hidden="true"><div class="dialog"><h2 id="modalTitle">操作ガイド</h2><p>2D模式図では、壁の映像に配管モデルを重ねて表示します。現実の配管を検出するわけではありません。</p><ul><li>壁・床・天井を選ぶか端末の傾きで切替。タップで新たな仮想配管を透視／ドラッグで位置を変更</li><li>バルブをタップ・クリック：枝管や設備ラインへの流れを切り替え。停止した系統も確認できます</li><li>左右矢印キー：バルブを選択、Enterキー：開閉</li><li>設備の種類：給水・空調・工場配管に切替</li><li>3D / AR：対応端末で固定サンプル模型を空間に配置（生成した配管は2Dカメラ表示専用）</li></ul><p>カメラ映像はこのブラウザ内で使われ、サーバーには送信しません。</p><button type="button" id="closeHelp">ガイドを閉じる</button></div></div>
+<aside class="stepbox"><h2>操作の流れ</h2>
+<div class="step"><span class="no">01</span><div><strong>空間を読み取る</strong><p>ARを開始し、スマートフォンをゆっくり動かします。</p></div></div>
+<div class="step"><span class="no">02</span><div><strong>配管を配置する</strong><p>配置ボタンを押した位置に3D配管を固定します。壁の自動検出ではありません。</p></div></div>
+<div class="step"><span class="no">03</span><div><strong>バルブを操作する</strong><p>手をかざして開閉。認識できないときは画面タップでも操作できます。</p></div></div>
+</aside>
 </main>
-<script>
-(()=>{'use strict';
-const $=id=>document.getElementById(id);const canvas=$('ar');const ctx=canvas.getContext('2d'); const video=$('camera');let stream=null;
-let mode='water',showFlow=true,alpha=.76,zoom=1,pan={x:0,y:0},activeValve=0;
-let valveOpen=[true,true,true];let view={w:0,h:0,dpr:1,s:1,cx:0,cy:0};
-const modelViewer=$('model3d');let show3D=false;const isCompact=()=>matchMedia('(max-width:767px)').matches;const panel=$('bottom');const panelBtn=$('panelToggle');panel.classList.toggle('collapsed',isCompact());panelBtn.setAttribute('aria-expanded',String(!isCompact()));panelBtn.textContent=isCompact()?'操作を開く':'操作を閉じる';panelBtn.addEventListener('click',()=>{let collapsed=panel.classList.toggle('collapsed');panelBtn.setAttribute('aria-expanded',String(!collapsed));panelBtn.textContent=collapsed?'操作を開く':'操作を閉じる';});let toastTimer;function showToast(message){const box=$('toast');box.textContent=message;box.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>box.classList.remove('visible'),6000);} 
-function update3D(){$('modelMessage').textContent='3Dモデルを読み込んでいます…';$('modelMessage').classList.remove('hidden');modelViewer.setAttribute('src',`assets/${mode}-${Number(valveOpen[0])}${Number(valveOpen[1])}-${Number(showFlow)}.glb`);}
-modelViewer.addEventListener('load',()=>$('modelMessage').classList.add('hidden'));
-modelViewer.addEventListener('error',()=>{$('modelMessage').textContent='3D表示に失敗。HTTPS公開とインターネット接続を確認してください。';$('modelMessage').classList.remove('hidden')});
-modelViewer.addEventListener('ar-status',e=>{if(e.detail.status==='failed'){showToast('ARを起動できません。3D表示でモデルを確認できます。');$('modelMessage').textContent='ARの起動に失敗しました。'}});
-$('viewSwitch').addEventListener('click',()=>{show3D=!show3D;$('modelStage').classList.toggle('show',show3D);$('viewSwitch').setAttribute('aria-pressed',String(show3D));$('viewSwitch').textContent=show3D?'2D 模式図に戻る':'3D / AR に切替';$('viewCaption').textContent=show3D?'3D モデル':'2D 模式図';$('cameraStatus').style.display=show3D?'none':'';$('hint').style.display=show3D?'none':'';if(show3D){update3D();if(stream)$('camBtn').click();}});
-const specs={
- water:{label:'給水設備',color:'#4c96a3',about:'主管から各使用設備に分岐する給水管の模式図。各枝管の止水弁は操作しやすい位置を想定しています。'},
- air:{label:'空調設備',color:'#548f7c',about:'冷温水の往き管と戻り管を持つ並列空調回路（ダイレクトリターン）の模式図です。'},
- plant:{label:'工場配管',color:'#b17d45',about:'共通入口・出口マニホールドから複数の設備ラインへ分配する工場配管の模式図です。'}
-};
-const SURFACES={wall:'壁内',floor:'床下',ceiling:'天井裏'};
-let surface='wall',sensorEnabled=false,network=null,scanCount=0,scanned=false,revealStart=0,revealPoint={x:0,y:0};
-let valveCoords=[],pointer=null,flowTotal=0,flowResult={total:0,active:0,terminalFlows:[],blocked:true},lastSurfaceCandidate='',surfaceCandidateSince=0;
-const motionReduced=matchMedia('(prefers-reduced-motion: reduce)');
-const setupSize=()=>{view.w=innerWidth;view.h=innerHeight;view.dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(view.w*view.dpr);canvas.height=Math.round(view.h*view.dpr);canvas.style.width=view.w+'px';canvas.style.height=view.h+'px'};addEventListener('resize',setupSize,{passive:true});setupSize();
-// External pure generator/solver is independent from camera, UI and 3D sample models.
-function newNetwork(){
- return window.WallPipeEngine.makeNetwork({mode,surface,seed:Math.floor(Math.random()*4294967296)});
-}
-function solveFlow(){
- if(!network)return;
- flowResult=window.WallPipeEngine.solveFlow(network,valveOpen);
- flowTotal=flowResult.total;
-}
-function changeSurface(next,origin='manual'){
- if(!SURFACES[next]||next===surface)return;
- surface=next;
- for(const b of document.querySelectorAll('[data-surface]'))b.setAttribute('aria-pressed',String(b.dataset.surface===surface));
- $('surfaceStatus').textContent=(origin==='sensor'?'姿勢推定：':'手動設定：')+SURFACES[next];
- scan({x:view.w*.47,y:view.h*.45},true);
-}
-function scan(point={x:view.w*.47,y:view.h*.45},keepPan=false){
- if(!keepPan)pan={x:0,y:0};
- network=newNetwork();valveOpen=[true,true,true];activeValve=0;scanCount++;scanned=true;
- revealPoint=point;revealStart=performance.now();
- solveFlow();updateDetail();
- $('hint').textContent=`SCAN ${String(scanCount).padStart(3,'0')}｜バルブをタップすると流路が変化 ／ 何もない場所をタップで次の配管`;
-}
-function rgba(hex,amount){const v=hex.replace('#','');return`rgba(${parseInt(v.slice(0,2),16)},${parseInt(v.slice(2,4),16)},${parseInt(v.slice(4,6),16)},${amount})`;}
-function pos(pt){return{x:view.cx+pt.x*view.s,y:view.cy+pt.y*view.s};}
-function drawEdge(e,now){
- const a=pos(network.nodes[e.a]),b=pos(network.nodes[e.b]);
- const width=(5.5+e.diameter*.48)*view.s;
- ctx.lineCap='round';ctx.lineJoin='round';
- const pipeColor=e.kind==='return'?'#637d83':e.kind==='load'?'#977b61':'#5d7e84';
- for(const [add,color,strength] of [[7,'#42585c',.76],[3,'#dce4e1',.88],[-2,pipeColor,.94]]){
-  ctx.strokeStyle=rgba(color,alpha*strength);ctx.lineWidth=width+add*view.s;
-  ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
- }
- if(!showFlow||Math.abs(e.flow)<.003)return;
- const t=(now*.00011*Math.min(2.1,Math.max(.32,Math.abs(e.flow)*3)))%1;
- const num=Math.max(1,Math.round(Math.hypot(b.x-a.x,b.y-a.y)/58));
- for(let i=0;i<num;i++){
-  const v=(i/num+t)%1,rev=e.flow<0,x=a.x+(b.x-a.x)*(rev?1-v:v),y=a.y+(b.y-a.y)*(rev?1-v:v);
-  const angle=Math.atan2(b.y-a.y,b.x-a.x)+(rev?Math.PI:0);
-  ctx.save();ctx.translate(x,y);ctx.rotate(angle);ctx.fillStyle=rgba(specs[mode].color,Math.min(1,alpha+.22));
-  ctx.beginPath();ctx.moveTo(6*view.s,0);ctx.lineTo(-5*view.s,-3.5*view.s);ctx.lineTo(-5*view.s,3.5*view.s);ctx.closePath();ctx.fill();ctx.restore();
- }
-}
-function drawValve(i){
- const v=network.valves[i],e=network.edges[v.edgeId],a=network.nodes[e.a],b=network.nodes[e.b];
- const p=pos({x:(a.x+b.x)/2,y:(a.y+b.y)/2}),r=14*view.s;
- valveCoords[i]={x:p.x,y:p.y};
- ctx.save();ctx.translate(p.x,p.y);ctx.globalAlpha=alpha;
- ctx.fillStyle='#d8e4e0';ctx.strokeStyle='#2f4c54';ctx.lineWidth=2.2*view.s;
- ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);ctx.fill();ctx.stroke();
- ctx.strokeStyle=valveOpen[i]?'#277d7a':'#b26442';ctx.lineWidth=5*view.s;ctx.beginPath();ctx.moveTo(-8*view.s,0);ctx.lineTo(8*view.s,0);ctx.stroke();
- ctx.rotate(valveOpen[i]?-Math.PI/4:Math.PI/4);ctx.strokeStyle='#c58a47';ctx.lineWidth=4*view.s;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(0,-20*view.s);ctx.stroke();ctx.restore();
- const label='V-0'+(i+1);ctx.save();ctx.font=`${Math.max(10,11*view.s)}px ui-monospace,monospace`;ctx.textAlign='center';
- const lx=v.axis==='v'?(i===2?p.x-47:p.x+8):p.x-20,ly=v.axis==='v'?p.y-8:p.y+17*view.s;
- ctx.fillStyle='#2c4145';ctx.fillRect(lx,ly,40,16);ctx.fillStyle='#fff';ctx.fillText(label,lx+20,ly+12);
- if(i===activeValve){ctx.strokeStyle='#d18b2a';ctx.lineWidth=2;ctx.setLineDash([4,3]);ctx.beginPath();ctx.arc(p.x,p.y,r+5*view.s,0,2*Math.PI);ctx.stroke();}
- ctx.restore();
-}
-function nodeLabel(index,label,placement='below'){
- const p=pos(network.nodes[index]);
- ctx.save();ctx.font='11px ui-monospace,SFMono-Regular,Consolas,monospace';ctx.textAlign='center';
- const width=Math.max(38,ctx.measureText(label).width+13),by=p.y+(placement==='below'?12*view.s:-29*view.s);
- ctx.fillStyle='rgba(36,63,69,.94)';ctx.fillRect(p.x-width/2,by,width,19);
- ctx.fillStyle='#fff';ctx.fillText(label,p.x,by+13);
- ctx.restore();
-}
-function drawNodes(){
- const used=new Set(network.edges.flatMap(e=>[e.a,e.b]));
- for(const nd of network.nodes){if(!used.has(nd.id))continue;const p=pos(nd);ctx.fillStyle=rgba('#b6cecb',alpha);ctx.beginPath();ctx.arc(p.x,p.y,3.6*view.s,0,2*Math.PI);ctx.fill();}
- nodeLabel(network.source,network.sourceLabel||'IN','above');
- if(network.targetLabel)network.targets.forEach(i=>nodeLabel(i,network.targetLabel,'above'));
- for(const t of network.terminals){
-  const p=pos(network.nodes[t.nodeId]);
-  ctx.save();ctx.strokeStyle='#2d676e';ctx.fillStyle='#f3f6ef';ctx.lineWidth=1.8;
-  if(t.kind==='fixture'){
-    ctx.beginPath();ctx.arc(p.x,p.y,6,0,Math.PI*2);ctx.fill();ctx.stroke();
-    nodeLabel(t.nodeId,t.label,network.surface==='floor'?'above':'below');
-  }else{
-    const marker=t.kind==='coil'?'COIL':'EQ';
-    ctx.fillRect(p.x-6,p.y-6,12,12);ctx.strokeRect(p.x-6,p.y-6,12,12);
-    nodeLabel(t.nodeId,t.label);
-  }
-  ctx.restore();
- }
-}
-function draw(now){
- const{w,h,dpr}=view;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
- view.s=Math.min((w-(isCompact()?0:360))/(isCompact()?770:690),h/670)*zoom;
- view.cx=(w-(isCompact()?0:360))*.5+pan.x;view.cy=h*(isCompact()?.42:.52)+pan.y;
- if(!show3D&&scanned&&network){
-  // Reveal from the tapped position. Reduced-motion shows the finished image immediately.
-  const progress=motionReduced.matches?1:Math.min(1,Math.max(0,(now-revealStart)/980));
-  const eased=1-(1-progress)**3,range=Math.hypot(w,h)*eased;
-  ctx.save();ctx.beginPath();ctx.arc(revealPoint.x,revealPoint.y,Math.max(1,range),0,2*Math.PI);ctx.clip();
-  for(const edge of network.edges)drawEdge(edge,motionReduced.matches?0:now);
-  drawNodes();network.valves.forEach((_v,i)=>drawValve(i));ctx.restore();
-  if(progress<1){ctx.beginPath();ctx.arc(revealPoint.x,revealPoint.y,range,0,2*Math.PI);ctx.strokeStyle='rgba(40,119,128,.55)';ctx.lineWidth=2;ctx.stroke();}
- }
- requestAnimationFrame(draw);
-}
-requestAnimationFrame(draw);
-function updateDetail(){
- if(!network)return;
- const v=network.valves[activeValve],opened=valveOpen[activeValve];
- const networkState=flowResult.blocked?'全系統停止':'通水中';
- $('detailName').textContent=`${v.name} / V-0${activeValve+1}`;
- $('badge').textContent=opened?'開・通過可能':'閉・遮断';$('badge').classList.toggle('is-closed',!opened);
- $('panelSummary').textContent=`SCAN ${String(scanCount).padStart(3,'0')} ｜ ${SURFACES[surface]} ｜ ${networkState}`;
- const level=$('floorLevel').selectedOptions[0].textContent;
- $('systemScheme').textContent=`構成：${network.scheme}。接続規則は固定し、分岐位置・管長・機器位置を変化させています。`;
- $('terminalStatus').textContent=`稼働系統 ${flowResult.active} / ${network.terminals.length} ｜ ${network.terminals.map((t,i)=>t.label+(flowResult.terminalFlows[i]>.00001?'：通水':'：停止')).join('　')}`;
- $('detailText').textContent=`${specs[mode].about} ${v.role}。${SURFACES[surface]}・${level}は仮定の表示です。${networkState}（${flowResult.active}/${network.terminals.length} 系統）。流量は電気抵抗回路に類似した簡易計算で、実測値ではありません。`;
-}
-function toggleValve(i){
- if(!scanned)scan();activeValve=i;valveOpen[i]=!valveOpen[i];solveFlow();updateDetail();
-}
-canvas.addEventListener('keydown',e=>{
- if(show3D)return;
- if(e.key==='ArrowRight'||e.key==='ArrowLeft'){
-  e.preventDefault();if(!scanned)scan();activeValve=(activeValve+(e.key==='ArrowRight'?1:2))%3;updateDetail();
- }else if(e.key==='Enter'||e.key===' '){e.preventDefault();if(!scanned)scan();else toggleValve(activeValve);}
-});
-canvas.addEventListener('pointerdown',e=>{if(show3D)return;canvas.setPointerCapture(e.pointerId);pointer={x:e.clientX,y:e.clientY,px:pan.x,py:pan.y,moved:false};});
-canvas.addEventListener('pointermove',e=>{if(!pointer)return;const dx=e.clientX-pointer.x,dy=e.clientY-pointer.y;if(Math.hypot(dx,dy)>10)pointer.moved=true;if(pointer.moved){pan.x=pointer.px+dx;pan.y=pointer.py+dy;}});
-canvas.addEventListener('pointerup',e=>{
- if(!pointer)return;const tap=!pointer.moved;pointer=null;if(!tap||show3D)return;
- if(!scanned){scan({x:e.clientX,y:e.clientY});return;}
- const hit=valveCoords.findIndex(p=>p&&Math.hypot(e.clientX-p.x,e.clientY-p.y)<Math.max(24,21*view.s));
- if(hit>=0){toggleValve(hit);return;}
- scan({x:e.clientX,y:e.clientY});
-});canvas.addEventListener('pointercancel',()=>pointer=null);
-for(const button of document.querySelectorAll('[data-surface]'))button.addEventListener('click',()=>{
- sensorEnabled=false;$('sensorBtn').textContent='傾きで自動切替';changeSurface(button.dataset.surface);
- if(button.dataset.surface===surface)$('surfaceStatus').textContent='手動設定：'+SURFACES[surface];
-});
-$('newScanBtn').addEventListener('click',()=>{scan();showToast('新しい仮想配管を生成しました');if(isCompact()){$('bottom').classList.add('collapsed');panelBtn.textContent='操作を開く';panelBtn.setAttribute('aria-expanded','false');}});
-$('floorLevel').addEventListener('change',()=>{if(scanned)scan();else updateDetail();});
-function onOrientation(e){
- if(!sensorEnabled||!Number.isFinite(e.beta)||!Number.isFinite(e.gamma))return;
- // Approximate vertical component of the display-normal; rear camera points the other way.
- const z=Math.cos(e.beta*Math.PI/180)*Math.cos(e.gamma*Math.PI/180);
- const next=z>.63?'floor':z<-.63?'ceiling':'wall';
- const t=performance.now();
- if(next!==lastSurfaceCandidate){lastSurfaceCandidate=next;surfaceCandidateSince=t;}
- if(next!==surface&&t-surfaceCandidateSince>950)changeSurface(next,'sensor');
- $('surfaceStatus').textContent='傾き推定：'+SURFACES[surface];
-}
-$('sensorBtn').addEventListener('click',async()=>{
- if(sensorEnabled){sensorEnabled=false;$('sensorBtn').textContent='傾きで自動切替';$('surfaceStatus').textContent='手動設定：'+SURFACES[surface];return;}
- if(!window.DeviceOrientationEvent){showToast('この端末は方向センサを利用できません');return;}
- try{
-  if(typeof DeviceOrientationEvent.requestPermission==='function'){
-   const permission=await DeviceOrientationEvent.requestPermission();
-   if(permission!=='granted'){showToast('方向センサの許可がありません');return;}
-  }
-  sensorEnabled=true;lastSurfaceCandidate='';window.addEventListener('deviceorientation',onOrientation,{passive:true});
-  $('sensorBtn').textContent='傾き自動：ON';$('surfaceStatus').textContent='傾きセンサのデータ待機中';
- }catch(e){showToast('センサを利用できません。手動で観察面を選べます');}
-});
-$('altitudeBtn').addEventListener('click',()=>{
- if(!navigator.geolocation){$('altitudeInfo').textContent='この端末では非対応';return;}
- $('altitudeInfo').textContent='取得中…';
- navigator.geolocation.getCurrentPosition(pos=>{
-  const{altitude,altitudeAccuracy}=pos.coords;
-  $('altitudeInfo').textContent=altitude===null?'高度データなし':`${altitude.toFixed(1)} m（誤差 ±${altitudeAccuracy===null?'不明':altitudeAccuracy.toFixed(1)+' m'}）`;
- },()=>{$('altitudeInfo').textContent='取得失敗・権限を確認';},{enableHighAccuracy:true,maximumAge:0,timeout:12000});
-});
-$('opacity').addEventListener('input',e=>{alpha=Number(e.target.value)/100;$('opacityValue').textContent=e.target.value+'%'});$('zoom').addEventListener('input',e=>{zoom=Number(e.target.value)/100;$('zoomValue').textContent=e.target.value+'%'});
-for(const b of document.querySelectorAll('[data-mode]'))b.addEventListener('click',()=>{mode=b.dataset.mode;activeValve=0;if(scanned)scan();for(const c of document.querySelectorAll('[data-mode]'))c.setAttribute('aria-pressed',String(c===b));updateDetail();update3D()});
-$('resetBtn').addEventListener('click',()=>{pan={x:0,y:0};zoom=1;alpha=.76;$('zoom').value=100;$('opacity').value=76;$('zoomValue').textContent='100%';$('opacityValue').textContent='76%';update3D()});
-$('flowBtn').addEventListener('click',e=>{showFlow=!showFlow;e.currentTarget.textContent='流体表示：'+(showFlow?'ON':'OFF');e.currentTarget.setAttribute('aria-pressed',String(showFlow));update3D()});
-let prevFocus=null;const openHelp=()=>{prevFocus=document.activeElement;$('modal').classList.add('open');$('modal').setAttribute('aria-hidden','false');$('closeHelp').focus()};const closeHelp=()=>{$('modal').classList.remove('open');$('modal').setAttribute('aria-hidden','true');prevFocus?.focus()};$('helpBtn').addEventListener('click',openHelp);$('closeHelp').addEventListener('click',closeHelp);document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('modal').classList.contains('open'))closeHelp()});
-$('modal').addEventListener('click',e=>{if(e.target===$('modal'))closeHelp()});
-$('camBtn').addEventListener('click',async()=>{if(stream){for(const t of stream.getTracks())t.stop();stream=null;video.srcObject=null;video.style.display='none';$('cameraStatusText').textContent='仮想壁を表示中・実物配管は検出しません';$('camBtn').textContent='カメラを起動';return}if(!navigator.mediaDevices?.getUserMedia){showToast('この環境ではカメラを使用できません。HTTPS接続を確認してください。');return}try{stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}});video.srcObject=stream;video.style.display='block';try{await video.play()}catch(_err){}$('cameraStatusText').textContent='カメラ映像に架空配管を重ねています・実配管は検知しません';$('camBtn').textContent='カメラを停止';scan()}catch(err){showToast('カメラが起動できません。権限とHTTPS接続を確認してください。')}});
-scanCount=0;
-})();
-</script>
-</body>
-</html>
+<footer>WallPipe AR — 架空の配管ネットワークによる教育・技術検証用デモ。ARの位置精度や手認識は端末・周囲の明るさに依存します。</footer>
+</body></html>
