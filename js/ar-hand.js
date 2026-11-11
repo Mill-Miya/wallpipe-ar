@@ -174,8 +174,10 @@ function sampleHand(){
  if(!landmarker){return;}
  if(video.readyState<2||!video.videoWidth||!video.videoHeight){handStatus('idle','手認識：カメラ映像を準備中');return;}
  const now=performance.now();if(now-lastInference<195)return;
- if(video.currentTime===lastVideoTime)return;
- lastVideoTime=video.currentTime;lastInference=now;
+ // XR camera streams may expose a video whose currentTime stays unchanged
+ // while the WebGL frame pipeline advances. Use a time budget, not currentTime,
+ // to avoid permanently freezing hand recognition on affected iPhones.
+ lastInference=now;
  try{
   const detections=landmarker.detectForVideo(video,now),landmarks=detections?.landmarks?.[0];
   if(!landmarks){Gestures.step(gesture,null,[],openings,now);showHandPoint(null,'');handStatus('ready','手認識：手が見つかりません。明るい場所で手を映してください。');return;}
