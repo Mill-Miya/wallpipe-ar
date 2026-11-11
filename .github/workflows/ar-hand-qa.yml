@@ -1,0 +1,30 @@
+name: AR hand integration QA
+on:
+  push:
+    branches: [main]
+    paths:
+      - ar-hand.html
+      - js/ar-hand.js
+      - js/gesture-control.js
+      - js/piping-engine.js
+      - tests/ar-hand.test.cjs
+      - .github/workflows/ar-hand-qa.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        run: node --check js/ar-hand.js && node --check js/gesture-control.js && node --check js/piping-engine.js
+      - name: World tracking and gesture integration contract
+        run: node tests/ar-hand.test.cjs
+      - name: Existing piping model regression
+        run: node tests/piping.test.cjs
+      - name: Existing gesture state regression
+        run: node tests/gesture.test.cjs
