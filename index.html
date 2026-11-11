@@ -54,7 +54,7 @@ footer{padding-top:16px;font-size:11px;color:#718080;line-height:1.75}footer str
 @media(max-width:370px){#viewSwitch{min-width:96px;font-size:10px;padding:9px 7px}.brand p{font-size:9px}h1{font-size:14px}.brandMark{display:none}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}button:active{transform:none}.ar-button:active{transform:translateX(-50%)}}
 
-/* v0.4 — spatial inspection controls */
+/* v0.5 — spatial inspection controls */
 .surfaceGroup{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.surfaceGroup button{font-weight:700}
 .scanMeta{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px;font-size:11px;color:var(--muted)}.scanMeta span{line-height:1.6}.scanMeta button{font-size:11px;padding:8px 10px;min-height:38px;flex:none}
 .floorRow{justify-content:flex-start}.floorRow label{white-space:nowrap}.floorRow select{border:1px solid #b8c7c4;background:#fff;color:var(--ink);font:inherit;min-height:38px;min-width:98px;padding:4px 8px}
@@ -62,16 +62,19 @@ footer{padding-top:16px;font-size:11px;color:#718080;line-height:1.75}footer str
 .smallNote{color:var(--muted);font-size:10px;line-height:1.55;margin:9px 0 0}
 #altitudeInfo{word-break:break-word;font-variant-numeric:tabular-nums}
 #hint{max-width:min(580px,calc(100vw - 390px));color:#213e42;font-weight:600}
+.terminalStatus{font:11px/1.75 ui-monospace,SFMono-Regular,Consolas,monospace;color:#476267;margin:9px 0 0;overflow-wrap:anywhere}
+#systemScheme{margin-top:12px}
 #cameraStatus{max-width:min(700px,calc(100vw - 390px))}
 @media(max-width:767px){#hint{max-width:calc(100vw - 24px)}#cameraStatus{max-width:calc(100vw - 24px)}.scanMeta{flex-wrap:wrap}.scanMeta button{flex:none}}
 </style>
 <script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@4.4.0/dist/model-viewer.min.js"></script>
+<script src="js/piping-engine.js"></script>
 </head>
 <body>
 <main id="app">
 <div id="wall" aria-hidden="true"></div>
 <video id="camera" autoplay muted playsinline aria-label="カメラ映像"></video>
-<canvas id="ar" tabindex="0" aria-label="自動生成した架空の配管ネットワーク。Enterで透視開始、左右キーでバルブを選択、Enterで開閉。ドラッグで移動。"></canvas>
+<canvas id="ar" tabindex="0" aria-label="設備の配管設計規則に基づいて自動生成した模式図。Enterで透視開始、左右キーでバルブを選択、Enterで開閉。ドラッグで移動。"></canvas>
 <div id="modelStage" aria-label="3D配管・AR配置ビュー">
 <model-viewer id="model3d" src="assets/water-11-1.glb" ar ar-modes="webxr scene-viewer quick-look" ar-placement="wall" camera-controls touch-action="pan-y" environment-image="neutral" shadow-intensity=".18" camera-orbit="0deg 72deg 4.5m" field-of-view="32deg" alt="バルブ2個の3D配管モデル">
 <button class="ar-button" slot="ar-button" type="button">壁に3Dモデルを配置</button>
@@ -89,17 +92,17 @@ footer{padding-top:16px;font-size:11px;color:#718080;line-height:1.75}footer str
 <section id="bottom" class="collapsed" aria-labelledby="panelTitle">
 <div class="panelHeader"><div><p class="kicker">CONTROL / 01</p><h2 id="panelTitle">表示・操作</h2><p id="panelSummary" class="panelSummary" role="status" aria-live="polite">SCAN 000 ｜ 待機</p></div><button id="panelToggle" type="button" aria-controls="panelBody" aria-expanded="false">操作を開く</button></div>
 <div id="panelBody">
-<div class="panelSection explore"><p class="sectionLabel">観察する面</p><div class="surfaceGroup" role="group" aria-label="観察対象の面"><button type="button" data-surface="wall" aria-pressed="true">壁</button><button type="button" data-surface="floor" aria-pressed="false">床</button><button type="button" data-surface="ceiling" aria-pressed="false">天井</button></div><div class="scanMeta"><span id="surfaceStatus" role="status">手動設定：壁</span><button type="button" id="sensorBtn">傾きで自動切替</button></div><div class="scanMeta floorRow"><label for="floorLevel">現在の階</label><select id="floorLevel"><option value="B1">地下1階</option><option value="1" selected>1階</option><option value="2">2階</option><option value="3">3階</option><option value="4">4階</option><option value="5">5階以上</option></select></div><p class="smallNote">床下・壁内・天井の配管は想像図です。実物は検知しません。</p><button type="button" id="newScanBtn" class="primary scanBtn">新しい配管を透視</button></div>
-<div class="panelSection"><p class="sectionLabel">設備の種類</p><div class="modes" role="group" aria-label="表示する設備"><button data-mode="water" aria-pressed="true">給水設備</button><button data-mode="air" aria-pressed="false">空調設備</button><button data-mode="plant" aria-pressed="false">工場配管</button></div></div>
+<div class="panelSection explore"><p class="sectionLabel">観察する面</p><div class="surfaceGroup" role="group" aria-label="観察対象の面"><button type="button" data-surface="wall" aria-pressed="true">壁</button><button type="button" data-surface="floor" aria-pressed="false">床</button><button type="button" data-surface="ceiling" aria-pressed="false">天井</button></div><div class="scanMeta"><span id="surfaceStatus" role="status">手動設定：壁</span><button type="button" id="sensorBtn">傾きで自動切替</button></div><div class="scanMeta floorRow"><label for="floorLevel">現在の階</label><select id="floorLevel"><option value="B1">地下1階</option><option value="1" selected>1階</option><option value="2">2階</option><option value="3">3階</option><option value="4">4階</option><option value="5">5階以上</option></select></div><p class="smallNote">位置・形状は仮想データです。床下・壁内・天井裏に実際にある配管は検知しません。</p><button type="button" id="newScanBtn" class="primary scanBtn">新しい配管を透視</button></div>
+<div class="panelSection"><p class="sectionLabel">設備の種類</p><div class="modes" role="group" aria-label="表示する設備"><button data-mode="water" aria-pressed="true">給水設備</button><button data-mode="air" aria-pressed="false">空調設備</button><button data-mode="plant" aria-pressed="false">工場配管</button></div><p id="systemScheme" class="smallNote" role="status">主管から使用機器へ分岐し、枝管ごとに止水します。</p><p id="terminalStatus" class="terminalStatus" role="status" aria-live="polite">供給先：3 / 3</p></div>
 <div id="detail"><p class="sectionLabel">選択したバルブ</p><div class="titleRow"><span id="detailName">ボールバルブ / V-01</span><span id="badge">開・通過</span></div><p id="detailText">バルブを選択すると開閉できます。流体の進行方向を観察してください。</p></div>
 <div class="panelSection"><p class="sectionLabel">透視表示</p><div class="control"><label for="opacity">透過度</label><input id="opacity" type="range" min="25" max="100" value="76"><output id="opacityValue" for="opacity">76%</output></div><div class="control"><label for="zoom">表示倍率</label><input id="zoom" type="range" min="65" max="150" value="100"><output id="zoomValue" for="zoom">100%</output></div></div>
 <div class="panelSection"><p class="sectionLabel">高度（参考）</p><div class="scanMeta"><button type="button" id="altitudeBtn">高度を取得</button><span id="altitudeInfo" role="status">未取得</span></div><p class="smallNote">高度は階数の判定に使用しません。位置はアプリからサーバーへ送信しません。測位処理は端末側に依存します。</p></div>
 <div class="panelSection"><p class="sectionLabel">表示操作</p><div class="row actions"><button class="primary" id="camBtn">カメラを起動</button><button id="flowBtn" aria-pressed="true">流体表示：ON</button><button id="resetBtn">位置を初期化</button><button id="helpBtn">操作ガイドを見る</button></div></div>
-<footer><strong>DEMO v0.4</strong>　架空の配管を表示する学習用モデルです。2D表示はカメラへの手動合成。3D/ARは固定サンプルで自動生成とは非連動です。</footer>
+<footer><strong>DEMO v0.5</strong>　用途別の構成規則に基づく教育用模式図です。流量は簡略化計算で実設計に使えません。3D/ARは固定モデルで非連動です。</footer>
 </div>
 </section>
 <div id="toast" role="status" aria-live="polite"></div>
-<div id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-hidden="true"><div class="dialog"><h2 id="modalTitle">操作ガイド</h2><p>2D模式図では、壁の映像に配管モデルを重ねて表示します。現実の配管を検出するわけではありません。</p><ul><li>壁・床・天井を選ぶか端末の傾きで切替。タップで新たな仮想配管を透視／ドラッグで位置を変更</li><li>バルブをタップ・クリック：配管ネットワーク内の流路を再計算</li><li>左右矢印キー：バルブを選択、Enterキー：開閉</li><li>設備の種類：給水・空調・工場配管に切替</li><li>3D / AR：対応端末で固定サンプル模型を空間に配置（生成した配管は2Dカメラ表示専用）</li></ul><p>カメラ映像はこのブラウザ内で使われ、サーバーには送信しません。</p><button type="button" id="closeHelp">ガイドを閉じる</button></div></div>
+<div id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-hidden="true"><div class="dialog"><h2 id="modalTitle">操作ガイド</h2><p>2D模式図では、壁の映像に配管モデルを重ねて表示します。現実の配管を検出するわけではありません。</p><ul><li>壁・床・天井を選ぶか端末の傾きで切替。タップで新たな仮想配管を透視／ドラッグで位置を変更</li><li>バルブをタップ・クリック：枝管や設備ラインへの流れを切り替え。停止した系統も確認できます</li><li>左右矢印キー：バルブを選択、Enterキー：開閉</li><li>設備の種類：給水・空調・工場配管に切替</li><li>3D / AR：対応端末で固定サンプル模型を空間に配置（生成した配管は2Dカメラ表示専用）</li></ul><p>カメラ映像はこのブラウザ内で使われ、サーバーには送信しません。</p><button type="button" id="closeHelp">ガイドを閉じる</button></div></div>
 </main>
 <script>
 (()=>{'use strict';
@@ -113,77 +116,23 @@ modelViewer.addEventListener('error',()=>{$('modelMessage').textContent='3D表�
 modelViewer.addEventListener('ar-status',e=>{if(e.detail.status==='failed'){showToast('ARを起動できません。3D表示でモデルを確認できます。');$('modelMessage').textContent='ARの起動に失敗しました。'}});
 $('viewSwitch').addEventListener('click',()=>{show3D=!show3D;$('modelStage').classList.toggle('show',show3D);$('viewSwitch').setAttribute('aria-pressed',String(show3D));$('viewSwitch').textContent=show3D?'2D 模式図に戻る':'3D / AR に切替';$('viewCaption').textContent=show3D?'3D モデル':'2D 模式図';$('cameraStatus').style.display=show3D?'none':'';$('hint').style.display=show3D?'none':'';if(show3D){update3D();if(stream)$('camBtn').click();}});
 const specs={
- water:{label:'給水設備',color:'#4c96a3',about:'給水設備を模した配管網。開閉に応じて代替経路の流量が変化します。'},
- air:{label:'空調設備',color:'#548f7c',about:'空調用冷温水配管の例。配管抵抗とバルブの状態をもとに流れを計算します。'},
- plant:{label:'工場配管',color:'#b17d45',about:'工場配管の仮想例。複数の流路とバルブで流体の経路を制御します。'}
+ water:{label:'給水設備',color:'#4c96a3',about:'主管から各使用設備に分岐する給水管の模式図。各枝管の止水弁は操作しやすい位置を想定しています。'},
+ air:{label:'空調設備',color:'#548f7c',about:'冷温水の往き管と戻り管を持つ並列空調回路（ダイレクトリターン）の模式図です。'},
+ plant:{label:'工場配管',color:'#b17d45',about:'共通入口・出口マニホールドから複数の設備ラインへ分配する工場配管の模式図です。'}
 };
 const SURFACES={wall:'壁内',floor:'床下',ceiling:'天井裏'};
 let surface='wall',sensorEnabled=false,network=null,scanCount=0,scanned=false,revealStart=0,revealPoint={x:0,y:0};
-let valveCoords=[],pointer=null,flowTotal=0,lastSurfaceCandidate='',surfaceCandidateSince=0;
+let valveCoords=[],pointer=null,flowTotal=0,flowResult={total:0,active:0,terminalFlows:[],blocked:true},lastSurfaceCandidate='',surfaceCandidateSince=0;
 const motionReduced=matchMedia('(prefers-reduced-motion: reduce)');
 const setupSize=()=>{view.w=innerWidth;view.h=innerHeight;view.dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(view.w*view.dpr);canvas.height=Math.round(view.h*view.dpr);canvas.style.width=view.w+'px';canvas.style.height=view.h+'px'};addEventListener('resize',setupSize,{passive:true});setupSize();
-const rand=(a,b)=>a+Math.random()*(b-a);
-const between=(a,b)=>Math.floor(rand(a,b+1));
+// External pure generator/solver is independent from camera, UI and 3D sample models.
 function newNetwork(){
- // 3 parallel fluid paths, optional cross-connections, shuffled valve positions.
- // The apparent surface is selected by tilt/manual controls, not detected from the scene.
- const cols=5,rows=3;
- const levels=surface==='wall'?[-170,0,170]:surface==='floor'?[-125,0,180]:[-190,0,125];
- const x=[-270,-135,0,135,270].map((v,i)=>v+(i===0||i===4?0:rand(-35,35)));
- const y=levels.map((v,i)=>v+rand(-20,20));
- const nodes=[];for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)nodes.push({x:x[c],y:y[r],id:r*cols+c});
- const edges=[];
- function addEdge(r1,c1,r2,c2){const a=r1*cols+c1,b=r2*cols+c2;edges.push({a,b,id:edges.length,resistance:rand(.82,1.25)*Math.hypot(nodes[a].x-nodes[b].x,nodes[a].y-nodes[b].y)/125,flow:0,valveIndex:-1});}
- // Each scan varies the span and cross-links of the three alternate routes.
- // The valve edges form a shared cut set so closing all three stops all flow.
- for(let c=0;c<cols-1;c++)addEdge(1,c,1,c+1);
- for(const r of [0,2]){
-  const left=between(0,1),right=between(3,4);
-  for(let c=left;c<right;c++)addEdge(r,c,r,c+1);
-  addEdge(1,left,r,left);addEdge(1,right,r,right);
-  if(left===0&&Math.random()<.35)addEdge(1,1,r,1);
-  if(right===4&&Math.random()<.35)addEdge(1,3,r,3);
- }
- const valves=[];
- for(let i=0;i<3;i++){
-  const edge=edges.find(e=>e.a===i*cols+2&&e.b===i*cols+3);
-  edge.valveIndex=i;
-  valves.push({edgeId:edge.id,name:i===1?'ボールバルブ':i===0?'仕切弁':'バタフライバルブ',axis:'h'});
- }
- return{nodes,edges,valves,source:5,target:9};
+ return window.WallPipeEngine.makeNetwork({mode,surface,seed:Math.floor(Math.random()*4294967296)});
 }
 function solveFlow(){
  if(!network)return;
- const{nodes,edges,source,target}=network;const n=nodes.length;
- const adj=Array.from({length:n},()=>[]);
- for(const e of edges){e.flow=0;if(e.valveIndex>=0&&!valveOpen[e.valveIndex])continue;adj[e.a].push(e.b);adj[e.b].push(e.a);}
- const reachable=new Set([source]),q=[source];for(let i=0;i<q.length;i++)for(const v of adj[q[i]])if(!reachable.has(v)){reachable.add(v);q.push(v);}
- flowTotal=0;if(!reachable.has(target))return;
- const internal=[...reachable].filter(v=>v!==source&&v!==target).sort((a,b)=>a-b),index=new Map(internal.map((v,i)=>[v,i]));
- const size=internal.length,mat=Array.from({length:size},()=>Array(size+1).fill(0));
- const potential=Array(n).fill(0);potential[source]=1;potential[target]=0;
- for(const e of edges){if(e.valveIndex>=0&&!valveOpen[e.valveIndex])continue;if(!reachable.has(e.a)||!reachable.has(e.b))continue;
-  const g=1/Math.max(.001,e.resistance);
-  for(const [v,u] of [[e.a,e.b],[e.b,e.a]]){
-   const i=index.get(v);if(i===undefined)continue;mat[i][i]+=g;
-   const j=index.get(u);if(j!==undefined)mat[i][j]-=g;else mat[i][size]+=g*potential[u];
-  }
- }
- // Gaussian elimination solves the resistor-network analogue (continuity at every junction).
- for(let c=0;c<size;c++){
-  let pivot=c;for(let r=c+1;r<size;r++)if(Math.abs(mat[r][c])>Math.abs(mat[pivot][c]))pivot=r;
-  if(Math.abs(mat[pivot][c])<1e-10)continue;
-  [mat[c],mat[pivot]]=[mat[pivot],mat[c]];
-  const z=mat[c][c];for(let k=c;k<=size;k++)mat[c][k]/=z;
-  for(let r=0;r<size;r++)if(r!==c){const a=mat[r][c];for(let k=c;k<=size;k++)mat[r][k]-=a*mat[c][k];}
- }
- for(const [v,i] of index)potential[v]=mat[i][size];
- for(const e of edges){if(e.valveIndex>=0&&!valveOpen[e.valveIndex])continue;if(!reachable.has(e.a)||!reachable.has(e.b))continue;
-  e.flow=(potential[e.a]-potential[e.b])/e.resistance;
-  if(Math.abs(e.flow)<1e-6)e.flow=0;
-  if(e.a===source)flowTotal+=e.flow;else if(e.b===source)flowTotal-=e.flow;
- }
- flowTotal=Math.max(0,flowTotal);
+ flowResult=window.WallPipeEngine.solveFlow(network,valveOpen);
+ flowTotal=flowResult.total;
 }
 function changeSurface(next,origin='manual'){
  if(!SURFACES[next]||next===surface)return;
@@ -203,19 +152,21 @@ function rgba(hex,amount){const v=hex.replace('#','');return`rgba(${parseInt(v.s
 function pos(pt){return{x:view.cx+pt.x*view.s,y:view.cy+pt.y*view.s};}
 function drawEdge(e,now){
  const a=pos(network.nodes[e.a]),b=pos(network.nodes[e.b]);
+ const width=(5.5+e.diameter*.48)*view.s;
  ctx.lineCap='round';ctx.lineJoin='round';
- for(const [thick,color] of [[21,'#425c62'],[17,'#e1ebea'],[11,'#59777b']]){
-  ctx.strokeStyle=rgba(color,alpha*(thick===21?.8:.91));ctx.lineWidth=thick*view.s;
+ const pipeColor=e.kind==='return'?'#637d83':e.kind==='load'?'#977b61':'#5d7e84';
+ for(const [add,color,strength] of [[7,'#42585c',.76],[3,'#dce4e1',.88],[-2,pipeColor,.94]]){
+  ctx.strokeStyle=rgba(color,alpha*strength);ctx.lineWidth=width+add*view.s;
   ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
  }
- if(!showFlow||Math.abs(e.flow)<.008)return;
- const t=(now*.00018*Math.min(2,Math.max(.35,Math.abs(e.flow)*2)))%1;
- const num=Math.max(1,Math.round(Math.hypot(b.x-a.x,b.y-a.y)/55));
+ if(!showFlow||Math.abs(e.flow)<.003)return;
+ const t=(now*.00011*Math.min(2.1,Math.max(.32,Math.abs(e.flow)*3)))%1;
+ const num=Math.max(1,Math.round(Math.hypot(b.x-a.x,b.y-a.y)/58));
  for(let i=0;i<num;i++){
   const v=(i/num+t)%1,rev=e.flow<0,x=a.x+(b.x-a.x)*(rev?1-v:v),y=a.y+(b.y-a.y)*(rev?1-v:v);
   const angle=Math.atan2(b.y-a.y,b.x-a.x)+(rev?Math.PI:0);
-  ctx.save();ctx.translate(x,y);ctx.rotate(angle);ctx.fillStyle=rgba(specs[mode].color,Math.min(1,alpha+.24));
-  ctx.beginPath();ctx.moveTo(5*view.s,0);ctx.lineTo(-4*view.s,-3*view.s);ctx.lineTo(-4*view.s,3*view.s);ctx.closePath();ctx.fill();ctx.restore();
+  ctx.save();ctx.translate(x,y);ctx.rotate(angle);ctx.fillStyle=rgba(specs[mode].color,Math.min(1,alpha+.22));
+  ctx.beginPath();ctx.moveTo(6*view.s,0);ctx.lineTo(-5*view.s,-3.5*view.s);ctx.lineTo(-5*view.s,3.5*view.s);ctx.closePath();ctx.fill();ctx.restore();
  }
 }
 function drawValve(i){
@@ -228,21 +179,41 @@ function drawValve(i){
  ctx.strokeStyle=valveOpen[i]?'#277d7a':'#b26442';ctx.lineWidth=5*view.s;ctx.beginPath();ctx.moveTo(-8*view.s,0);ctx.lineTo(8*view.s,0);ctx.stroke();
  ctx.rotate(valveOpen[i]?-Math.PI/4:Math.PI/4);ctx.strokeStyle='#c58a47';ctx.lineWidth=4*view.s;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(0,-20*view.s);ctx.stroke();ctx.restore();
  const label='V-0'+(i+1);ctx.save();ctx.font=`${Math.max(10,11*view.s)}px ui-monospace,monospace`;ctx.textAlign='center';
- ctx.fillStyle='#2c4145';ctx.fillRect(p.x-20,p.y+17*view.s,40,16);ctx.fillStyle='#fff';ctx.fillText(label,p.x,p.y+29*view.s);
+ const lx=v.axis==='v'?(i===2?p.x-47:p.x+8):p.x-20,ly=v.axis==='v'?p.y-8:p.y+17*view.s;
+ ctx.fillStyle='#2c4145';ctx.fillRect(lx,ly,40,16);ctx.fillStyle='#fff';ctx.fillText(label,lx+20,ly+12);
  if(i===activeValve){ctx.strokeStyle='#d18b2a';ctx.lineWidth=2;ctx.setLineDash([4,3]);ctx.beginPath();ctx.arc(p.x,p.y,r+5*view.s,0,2*Math.PI);ctx.stroke();}
+ ctx.restore();
+}
+function nodeLabel(index,label,placement='below'){
+ const p=pos(network.nodes[index]);
+ ctx.save();ctx.font='11px ui-monospace,SFMono-Regular,Consolas,monospace';ctx.textAlign='center';
+ const width=Math.max(38,ctx.measureText(label).width+13),by=p.y+(placement==='below'?12*view.s:-29*view.s);
+ ctx.fillStyle='rgba(36,63,69,.94)';ctx.fillRect(p.x-width/2,by,width,19);
+ ctx.fillStyle='#fff';ctx.fillText(label,p.x,by+13);
  ctx.restore();
 }
 function drawNodes(){
  const used=new Set(network.edges.flatMap(e=>[e.a,e.b]));
- for(const nd of network.nodes){if(!used.has(nd.id))continue;const p=pos(nd);ctx.fillStyle=rgba('#b6cecb',alpha);ctx.beginPath();ctx.arc(p.x,p.y,4.2*view.s,0,2*Math.PI);ctx.fill();}
- for(const [idx,label] of [[network.source,'IN'],[network.target,'OUT']]){
-  const p=pos(network.nodes[idx]);ctx.fillStyle='#2b4d53';ctx.fillRect(p.x-21,p.y-30*view.s,42,17);
-  ctx.textAlign='center';ctx.font='11px ui-monospace,monospace';ctx.fillStyle='#fff';ctx.fillText(label,p.x,p.y-18*view.s);
+ for(const nd of network.nodes){if(!used.has(nd.id))continue;const p=pos(nd);ctx.fillStyle=rgba('#b6cecb',alpha);ctx.beginPath();ctx.arc(p.x,p.y,3.6*view.s,0,2*Math.PI);ctx.fill();}
+ nodeLabel(network.source,network.sourceLabel||'IN','above');
+ if(network.targetLabel)network.targets.forEach(i=>nodeLabel(i,network.targetLabel,'above'));
+ for(const t of network.terminals){
+  const p=pos(network.nodes[t.nodeId]);
+  ctx.save();ctx.strokeStyle='#2d676e';ctx.fillStyle='#f3f6ef';ctx.lineWidth=1.8;
+  if(t.kind==='fixture'){
+    ctx.beginPath();ctx.arc(p.x,p.y,6,0,Math.PI*2);ctx.fill();ctx.stroke();
+    nodeLabel(t.nodeId,t.label,network.surface==='floor'?'above':'below');
+  }else{
+    const marker=t.kind==='coil'?'COIL':'EQ';
+    ctx.fillRect(p.x-6,p.y-6,12,12);ctx.strokeRect(p.x-6,p.y-6,12,12);
+    nodeLabel(t.nodeId,t.label);
+  }
+  ctx.restore();
  }
 }
 function draw(now){
  const{w,h,dpr}=view;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
- view.s=Math.min((w-(isCompact()?0:360))/690,h/670)*zoom;
+ view.s=Math.min((w-(isCompact()?0:360))/(isCompact()?770:690),h/670)*zoom;
  view.cx=(w-(isCompact()?0:360))*.5+pan.x;view.cy=h*(isCompact()?.42:.52)+pan.y;
  if(!show3D&&scanned&&network){
   // Reveal from the tapped position. Reduced-motion shows the finished image immediately.
@@ -259,12 +230,14 @@ requestAnimationFrame(draw);
 function updateDetail(){
  if(!network)return;
  const v=network.valves[activeValve],opened=valveOpen[activeValve];
- const networkState=flowTotal>.0001?'流路あり':'全流路停止';
+ const networkState=flowResult.blocked?'全系統停止':'通水中';
  $('detailName').textContent=`${v.name} / V-0${activeValve+1}`;
  $('badge').textContent=opened?'開・通過可能':'閉・遮断';$('badge').classList.toggle('is-closed',!opened);
  $('panelSummary').textContent=`SCAN ${String(scanCount).padStart(3,'0')} ｜ ${SURFACES[surface]} ｜ ${networkState}`;
  const level=$('floorLevel').selectedOptions[0].textContent;
- $('detailText').textContent=`${specs[mode].about} ${SURFACES[surface]}・${level}を想定。${networkState}。流量は模式計算であり、実測値ではありません。`;
+ $('systemScheme').textContent=`構成：${network.scheme}。接続規則は固定し、分岐位置・管長・機器位置を変化させています。`;
+ $('terminalStatus').textContent=`稼働系統 ${flowResult.active} / ${network.terminals.length} ｜ ${network.terminals.map((t,i)=>t.label+(flowResult.terminalFlows[i]>.00001?'：通水':'：停止')).join('　')}`;
+ $('detailText').textContent=`${specs[mode].about} ${v.role}。${SURFACES[surface]}・${level}は仮定の表示です。${networkState}（${flowResult.active}/${network.terminals.length} 系統）。流量は電気抵抗回路に類似した簡易計算で、実測値ではありません。`;
 }
 function toggleValve(i){
  if(!scanned)scan();activeValve=i;valveOpen[i]=!valveOpen[i];solveFlow();updateDetail();
