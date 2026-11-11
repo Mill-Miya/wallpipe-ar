@@ -6,15 +6,16 @@ const THREE=window.THREE, Engine=window.WallPipeEngine, Gestures=window.WallPipe
 const HandMap=window.WallPipeHandScreenMap, TrackingGate=window.WallPipeTrackingGate;
 if(!THREE||!Engine||!Gestures||!HandMap||!TrackingGate)throw new Error('Missing WallPipe or three.js dependencies');
 const $=id=>document.getElementById(id);
-const ui={stage:$('stage'),canvas:$('arCanvas'),start:$('start'),place:$('place'),reset:$('reset'),panel:$('panel'),collapse:$('collapse'),preview:$('preview'),status:$('status'),statusText:$('statusText'),info:$('info'),hand:$('handState'),pointer:$('pointer'),opening:$('opening'),openingOut:$('openingOut'),select:$('valveSelect'),toggle:$('toggle'),summary:$('flowSummary'),quick:$('quickAction'),alignment:$('handTransform'),handRetry:$('handRetry'),rescan:$('rescan'),trackingDetails:$('trackingDetails'),distance:$('placeDistance'),distanceOut:$('placeDistanceOut'),height:$('placeHeight'),heightOut:$('placeHeightOut'),reticle:$('targetReticle')};
+const ui={stage:$('stage'),canvas:$('arCanvas'),start:$('start'),place:$('place'),reset:$('reset'),panel:$('panel'),collapse:$('collapse'),preview:$('preview'),status:$('status'),statusText:$('statusText'),info:$('info'),hand:$('handState'),pointer:$('pointer'),opening:$('opening'),openingOut:$('openingOut'),select:$('valveSelect'),toggle:$('toggle'),summary:$('flowSummary'),quick:$('quickAction'),alignment:$('handTransform'),handRetry:$('handRetry'),rescan:$('rescan'),trackingDetails:$('trackingDetails'),handHud:$('handHud'),scale:$('placeScale'),scaleOut:$('placeScaleOut'),distance:$('placeDistance'),distanceOut:$('placeDistanceOut'),height:$('placeHeight'),heightOut:$('placeHeightOut'),reticle:$('targetReticle')};
 const clamp=(v,lo,hi)=>Math.min(hi,Math.max(lo,v));
-let started=false,scene=null,camera=null,anchor=null,video=null,tracking=false,lastTracking='',lastReason='';
+let started=false,scene=null,camera=null,anchor=null,video=null,ownedVideo=null,tracking=false,lastTracking='',lastReason='';
 let mode='water',network=null,openings=[1,1,1],selected=0,modelReady=false,landmarker=null,loadingHand=false;
-let valves=[],flowMarkers=[],gesture=Gestures.createState(),lastInference=0,lastMessage='',handInitFailed=false;
+let valves=[],flowMarkers=[],gesture=Gestures.createState(),lastInference=0,lastMessage='',handInitFailed=false,lastVideoTime=-1,lastHandsSeen=0;
 const trackingGate=TrackingGate.createState();
 const colorByMode={water:0x2b8ea1,air:0x368d74,plant:0xb37a38};
 function state(status,message){if(ui.status.dataset.status!==status||ui.statusText.textContent!==message){ui.status.dataset.status=status;ui.statusText.textContent=message;}}
 function info(message){if(message!==lastMessage){ui.info.textContent=message;lastMessage=message;}}
+function handStatus(kind,message){if(ui.handHud.dataset.state!==kind||ui.handHud.textContent!==message){ui.handHud.dataset.state=kind;ui.handHud.textContent=message;}}
 function updateQuickAction(){
  if(!started){ui.quick.hidden=false;ui.quick.textContent='ARカメラを開始';ui.quick.disabled=!window.XR8;return;}
  if(!modelReady){ui.quick.hidden=false;ui.quick.textContent=tracking?'配管を空間に配置':'空間を認識中…';ui.quick.disabled=!tracking;return;}
@@ -117,7 +118,7 @@ function buildNetwork(){
  refreshFlow();syncControls();
  ui.preview.textContent='配管は仮想の設備です。配置後はその位置に留まり、端末を動かすと横から観察できます。';
 }
-function resetPlacement(){if(anchor){anchor.visible=false;}modelReady=false;ui.reticle.classList.remove('is-placed');ui.distance.disabled=false;ui.height.disabled=false;ui.reset.disabled=true;ui.place.disabled=!tracking;Gestures.reset(gesture);showHandPoint(null,'');updateQuickAction();info('配置を解除しました。カメラで壁を映し、再配置してください。');}
+function resetPlacement(){if(anchor){anchor.visible=false;}modelReady=false;ui.reticle.classList.remove('is-placed');ui.distance.disabled=false;ui.height.disabled=false;ui.scale.disabled=false;ui.reset.disabled=true;ui.place.disabled=!tracking;Gestures.reset(gesture);showHandPoint(null,'');updateQuickAction();info('配置を解除しました。カメラで壁を映し、再配置してください。');}
 function placeModel(){
  if(!tracking||!camera||!anchor){info('追跡が安定してから配置してください。');return;}
  // Tracking comes from XR8; the approximate wall target is 1.5m along the view ray.
@@ -128,12 +129,14 @@ function placeModel(){
  flat.normalize();
  anchor.position.copy(camera.position).addScaledVector(forward,Number(ui.distance.value));
  anchor.position.y+=Number(ui.height.value);
+ anchor.scale.setScalar(Number(ui.scale.value));
  anchor.rotation.set(0,Math.atan2(-flat.x,-flat.z),0);
  anchor.visible=true;anchor.updateMatrixWorld(true);
- ui.reticle.classList.add('is-placed');ui.distance.disabled=true;ui.height.disabled=true;
+ ui.reticle.classList.add('is-placed');ui.distance.disabled=true;ui.height.disabled=true;ui.scale.disabled=true;
  modelReady=true;ui.reset.disabled=false;ui.place.disabled=false;
  Gestures.reset(gesture);updateQuickAction();
  ui.hand.textContent=landmarker?'手認識が有効です。バルブの前でピンチしてください。':'手認識を準備しています…';
+ handStatus(landmarker?'ready':'idle',landmarker?'手認識：準備完了。バルブへ手を向けてください。':'手認識：モデルを読み込み中');
  if(video&&!landmarker&&!loadingHand)initializeHandTracking();
  info('配管を配置しました。左右に動いて側面を確認し、バルブに手をかざしてください。');
 }
@@ -147,37 +150,45 @@ function showHandPoint(p,kind){if(!p){ui.pointer.style.display='none';return;}ui
 function handleGesture(result){
  if(result.point)showHandPoint(result.point,result.kind);else showHandPoint(null,'');
  if(!tracking||!modelReady)return;
- if(result.kind==='grab'){setSelection(result.index);ui.hand.textContent=`V-0${result.index+1} をつかみました。手を回してください。`;}
- if(result.kind==='rotate'){setOpening(result.index,result.value);ui.hand.textContent=`V-0${result.index+1} の開度 ${Math.round(openings[result.index]*100)}%`;}
- if(result.kind==='dwell-toggle'){setSelection(result.index);setOpening(result.index,result.value);ui.hand.textContent='手のかざし操作で開閉しました。';}
+ if(result.kind==='grab'){setSelection(result.index);ui.hand.textContent=`V-0${result.index+1} をつかみました。手を回してください。`;handStatus('tracking',`手認識：V-0${result.index+1} をつかんでいます`);}
+ if(result.kind==='rotate'){setOpening(result.index,result.value);ui.hand.textContent=`V-0${result.index+1} の開度 ${Math.round(openings[result.index]*100)}%`;handStatus('tracking',`V-0${result.index+1}：開度 ${Math.round(openings[result.index]*100)}%`);}
+ if(result.kind==='dwell-toggle'){setSelection(result.index);setOpening(result.index,result.value);ui.hand.textContent='手のかざし操作で開閉しました。';handStatus('tracking',`V-0${result.index+1}：手をかざして切替完了`);}
  if(result.kind==='release')ui.hand.textContent='手を離しました。';
- if(result.kind==='hover')ui.hand.textContent=`V-0${result.index+1} に手をかざし中：${Math.round(result.progress*100)}%`;
+ if(result.kind==='hover'){ui.hand.textContent=`V-0${result.index+1} に手をかざし中：${Math.round(result.progress*100)}%`;handStatus('tracking',`V-0${result.index+1} にかざし中 ${Math.round(result.progress*100)}%`);}
 }
 async function initializeHandTracking(){
  if(loadingHand||landmarker||!video)return;
- loadingHand=true;handInitFailed=false;ui.handRetry.style.display='none';ui.hand.textContent='手認識モデルを読み込み中…';
+ loadingHand=true;handInitFailed=false;ui.handRetry.style.display='none';ui.hand.textContent='手認識モデルを読み込み中…';handStatus('idle','手認識：モデルを読み込み中');
  try{
   const {FilesetResolver,HandLandmarker}=await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/vision_bundle.mjs');
   const vision=await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm');
   const opts={baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',delegate:'GPU'},runningMode:'VIDEO',numHands:1,minHandDetectionConfidence:.6,minHandPresenceConfidence:.6,minTrackingConfidence:.6};
   try{landmarker=await HandLandmarker.createFromOptions(vision,opts);}catch(e){console.warn('GPU hand inference unavailable; falling back to CPU',e);opts.baseOptions.delegate='CPU';landmarker=await HandLandmarker.createFromOptions(vision,opts);}
-  ui.hand.textContent='手認識が有効です。バルブの前でピンチしてください。';
- }catch(err){console.error('Hand tracker unavailable',err);handInitFailed=true;ui.handRetry.style.display='block';ui.hand.textContent='手認識を起動できません。画面タップ・スライダーで操作するか、再試行してください。';}
+  ui.hand.textContent='手認識が有効です。バルブの前でピンチしてください。';handStatus('ready','手認識：準備完了。手をカメラに映してください。');
+ }catch(err){console.error('Hand tracker unavailable',err);handInitFailed=true;ui.handRetry.style.display='block';ui.hand.textContent='手認識を起動できません。画面タップ・スライダーで操作するか、再試行してください。';handStatus('error','手認識：モデル読込失敗。操作パネルから再試行');}
  finally{loadingHand=false;}
 }
 function sampleHand(){
- if(!landmarker||!video||!tracking||!modelReady||document.hidden||video.readyState<2){showHandPoint(null,'');return;}
- const now=performance.now();if(now-lastInference<115)return;lastInference=now;
+ if(!tracking||!modelReady||document.hidden){showHandPoint(null,'');return;}
+ if(!video){handStatus('error','手認識：カメラ映像を取得できません');return;}
+ if(!landmarker){return;}
+ if(video.readyState<2||!video.videoWidth||!video.videoHeight){handStatus('idle','手認識：カメラ映像を準備中');return;}
+ const now=performance.now();if(now-lastInference<195)return;
+ if(video.currentTime===lastVideoTime)return;
+ lastVideoTime=video.currentTime;lastInference=now;
  try{
   const detections=landmarker.detectForVideo(video,now),landmarks=detections?.landmarks?.[0];
-  if(!landmarks){Gestures.step(gesture,null,[],openings,now);showHandPoint(null,'');return;}
+  if(!landmarks){Gestures.step(gesture,null,[],openings,now);showHandPoint(null,'');handStatus('ready','手認識：手が見つかりません。明るい場所で手を映してください。');return;}
+ lastHandsSeen=now;
   // The source video comes from XR8.onAttach. Coordinates are image-space only.
   const rect=ui.canvas.getBoundingClientRect();
   const points=HandMap.mapLandmarks(landmarks,{videoWidth:video.videoWidth,videoHeight:video.videoHeight,rect,mode:ui.alignment.value});
   if(!points){showHandPoint(null,'');return;}
   const visible=projectMarkers().map(v=>v.valid?v:{x:-99999,y:-99999});
-  handleGesture(Gestures.step(gesture,points,visible,openings,now));
- }catch(err){console.error('Hand frame processing stopped',err);landmarker=null;ui.hand.textContent='手認識が停止しました。タップ操作を使用してください。';showHandPoint(null,'');}
+  const event=Gestures.step(gesture,points,visible,openings,now);
+  handleGesture(event);
+  if(event.kind==='tracking'||event.kind==='pinch-outside')handStatus('ready',event.kind==='tracking'?'手認識：手を検出。バルブに近づけてください。':'手認識：指を検出。バルブの近くでピンチしてください。');
+ }catch(err){console.error('Hand frame processing stopped',err);landmarker=null;handInitFailed=true;ui.handRetry.style.display='block';ui.hand.textContent='手認識が停止しました。タップ操作を使用してください。';handStatus('error','手認識：処理エラー。操作パネルから再試行');showHandPoint(null,'');}
 }
 function animateFlow(){if(!modelReady||!network)return;const t=performance.now()*.00030;for(const e of flowMarkers){const f=e.edge.flow;e.mesh.visible=Math.abs(f)>.004;if(!e.mesh.visible)continue;const p=(t*Math.min(2,Math.max(.35,Math.abs(f)*5))+e.edge.id*.17)%1;e.mesh.position.copy(e.a).lerp(e.b,f>=0?p:1-p);}}
 function pipePipelineModule(){return {
@@ -190,8 +201,16 @@ function pipePipelineModule(){return {
   window.XR8.XrController.updateCameraProjectionMatrix({origin:camera.position,facing:camera.quaternion});
   buildNetwork();state('loading','カメラが起動しました。空間追跡を初期化中です。');
  },
- onAttach:({video:sourceVideo})=>{video=sourceVideo||null;if(modelReady&&!landmarker)initializeHandTracking();},
- onDetach:()=>{video=null;tracking=false;TrackingGate.update(trackingGate,'LIMITED',10,1);showHandPoint(null,'');Gestures.reset(gesture);updateQuickAction();ui.hand.textContent='ARを再開して配管を配置すると手認識を利用できます。';},
+ onAttach:({video:sourceVideo,stream:sourceStream})=>{
+  video=sourceVideo||null;
+  if(!video&&sourceStream){
+    ownedVideo=document.createElement('video');ownedVideo.muted=true;ownedVideo.playsInline=true;ownedVideo.autoplay=true;
+    ownedVideo.srcObject=sourceStream;video=ownedVideo;ownedVideo.play().catch(()=>{handStatus('error','手認識：映像の再生に失敗しました');});
+  }
+  handStatus('idle',video?'手認識：配管を配置すると起動します':'手認識：カメラ映像の取得を確認中');
+  if(modelReady&&!landmarker)initializeHandTracking();
+ },
+ onDetach:()=>{if(ownedVideo){ownedVideo.pause();ownedVideo.srcObject=null;ownedVideo=null;}video=null;tracking=false;TrackingGate.update(trackingGate,'LIMITED',10,1);showHandPoint(null,'');Gestures.reset(gesture);updateQuickAction();ui.hand.textContent='ARを再開して配管を配置すると手認識を利用できます。';},
  onUpdate:({processCpuResult})=>{
   const reality=processCpuResult?.reality;
   const status=reality?.trackingStatus||'INITIALIZING';
@@ -233,6 +252,7 @@ window.addEventListener('xrloaded',checkEngine);
 if(!checkEngine())setTimeout(()=>{if(!window.XR8){state('error','8th Wallエンジンを読み込めません。ネット接続と対応ブラウザを確認してください。');ui.start.disabled=true;}},14000);
 ui.distance.addEventListener('input',()=>{ui.distanceOut.textContent=Number(ui.distance.value).toFixed(1)+'m';});
 ui.height.addEventListener('input',()=>{ui.heightOut.textContent=Math.round(Number(ui.height.value)*100)+'cm';});
+ui.scale.addEventListener('input',()=>{ui.scaleOut.textContent=Math.round(Number(ui.scale.value)*100)+'%';});
 ui.start.addEventListener('click',startAR);
 ui.rescan.addEventListener('click',()=>{
   if(!started||!window.XR8)return;
