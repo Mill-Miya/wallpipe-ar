@@ -1,0 +1,13 @@
+'use strict';
+const fs=require('node:fs');
+const assert=require('node:assert/strict');
+const home=fs.readFileSync('index.html','utf8');
+const ar=fs.readFileSync('ar-hand.html','utf8');
+assert(home.includes('href="./ar-hand.html"'),'AR page must be primary entry');
+assert(!home.includes('getUserMedia('),'Home must not start an unrelated 2D camera');
+assert(!home.includes('2D 模式図'),'Old 2D simulation must not be promoted on home');
+assert(!home.includes('KITZ')&&!home.includes('キッツ'),'Home must have no company-specific wording');
+assert(ar.includes('id="handRetry"'),'AR hand model must be retryable');
+assert(ar.includes('id="quickAction"'),'Mobile quick AR control must remain accessible');
+assert(ar.includes('8thwall'),'Spatial tracking engine must still be loaded');
+console.log('PASS: primary entry is spatial AR; old 2D overlay is not the home screen');
