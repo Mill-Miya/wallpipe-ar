@@ -107,7 +107,7 @@ async function initializeHandTracking(){
 }
 function sampleHand(){
  if(!landmarker||!video||!tracking||!modelReady||video.readyState<2){showHandPoint(null,'');return;}
- const now=performance.now();if(now-lastInference<115)return;lastInference=now;
+ const now=performance.now();if(now-lastInference<150)return;lastInference=now;
  try{
   const detections=landmarker.detectForVideo(video,now),landmarks=detections?.landmarks?.[0];
   if(!landmarks){Gestures.step(gesture,null,[],openings,now);showHandPoint(null,'');return;}
@@ -144,7 +144,9 @@ function startAR(){
  started=true;ui.start.disabled=true;ui.start.textContent='ARカメラ実行中';ui.stage.classList.add('running');
  try{
   window.XR8.XrController.configure({disableWorldTracking:false,scale:'absolute'});
-  window.XR8.addCameraPipelineModules([window.XR8.GlTextureRenderer.pipelineModule(),window.XR8.Threejs.pipelineModule(),window.XR8.XrController.pipelineModule(),pipePipelineModule()]);
+  const pipelines=[window.XR8.GlTextureRenderer.pipelineModule(),window.XR8.Threejs.pipelineModule(),window.XR8.XrController.pipelineModule()];
+  if(window.XRExtras?.FullWindowCanvas?.pipelineModule)pipelines.push(window.XRExtras.FullWindowCanvas.pipelineModule());
+  pipelines.push(pipePipelineModule());window.XR8.addCameraPipelineModules(pipelines);
   window.XR8.run({canvas:ui.canvas});
   info('空間追跡を開始しています。壁の模様が見えるよう、ゆっくりカメラを動かしてください。');
  }catch(err){started=false;ui.start.disabled=false;ui.start.textContent='ARカメラを再試行';state('error','ARの起動に失敗しました。');console.error(err);}
