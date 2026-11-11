@@ -25,7 +25,7 @@ assert(page.includes('width:100vw!important')&&page.includes('height:100dvh!impo
 // Regression: iPhone landscape/portrait image alignment, smaller initial model,
  // and visible diagnostics are required before claiming AR hand usability.
 failIfMissing(['id="handHud"','id="placeScale"','id="placeDistance"','value="2.2"','value="0.72"'],page,'AR viewport and hand visibility');
-failIfMissing(['handStatus','ownedVideo.srcObject=sourceStream','anchor.scale.setScalar(Number(ui.scale.value))','ui.scale.disabled=true','lastVideoTime=video.currentTime'],app,'Hand feed and placement scale');
+failIfMissing(['handStatus','ownedVideo.srcObject=sourceStream','anchor.scale.setScalar(Number(ui.scale.value))','ui.scale.disabled=true','lastInference=now'],app,'Hand feed and placement scale');
 assert(page.includes('v0.8.4'),'Version should advance with camera UX fixes');
 failIfMissing(['goodFrames=10','badFrames=3',"status==='NORMAL'"],trackingGate,'SLAM hysteresis');
 // World placement must be user-triggered: attaching a video alone must not auto-anchor.
