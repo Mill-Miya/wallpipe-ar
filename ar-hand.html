@@ -23,13 +23,24 @@ details{font-size:12px;line-height:1.7;color:#56676b;margin-top:13px}summary{cur
 #quickAction[hidden]{display:none}#quickAction:disabled{opacity:.65;cursor:not-allowed}
 .handAdjust{display:flex;align-items:center;gap:10px;justify-content:space-between}.handAdjust label{font-size:12px;line-height:1.5}.handAdjust select{min-width:132px;max-width:160px;border:1px solid #a7bcb7;padding:8px 5px;background:white;color:var(--ink);font-size:12px;min-height:42px}
 @media(max-width:720px){#quickAction{left:12px;bottom:calc(164px + env(safe-area-inset-bottom));min-height:44px}#info{bottom:calc(110px + env(safe-area-inset-bottom))}}
+
+/* v0.8.3: full-window camera, compact mobile HUD */
+#stage,#arCanvas{width:100vw!important;height:100dvh!important;max-width:none!important;max-height:none!important;left:0!important;top:0!important}
+#arCanvas{display:block!important;object-fit:cover}
+@media(max-width:720px){
+ #preview{right:12px;top:calc(69px + env(safe-area-inset-top));left:12px;max-width:unset;padding:7px 10px;font-size:11px;line-height:1.45;background:#f7f8f4e0}
+ #info{bottom:calc(110px + env(safe-area-inset-bottom));max-height:none;overflow:visible;line-height:1.45}
+ #quickAction{bottom:calc(172px + env(safe-area-inset-bottom));left:12px}
+ .panel:not(.is-collapsed){max-height:64dvh}
+}
 </style>
 <!-- 8th Wall binary: Copyright © 2026 Niantic Spatial, Inc. License: https://github.com/8thwall/engine/blob/main/LICENSE -->
+<script src="https://cdn.jsdelivr.net/npm/@8thwall/xrextras@1/dist/xrextras.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@8thwall/engine-binary@1/dist/xr.js" async crossorigin="anonymous" data-preload-chunks="slam"></script>
 </head>
 <body>
 <div id="stage"><canvas id="arCanvas" aria-label="空間固定した3D配管とバルブのAR画面"></canvas></div>
-<header class="topbar"><div class="brand">WallPipe AR<small>空間固定・手操作 v0.8.2</small></div><a href="./index.html">シミュレーターへ戻る</a></header>
+<header class="topbar"><div class="brand">WallPipe AR<small>空間固定・手操作 v0.8.3</small></div><a href="./index.html">シミュレーターへ戻る</a></header>
 <div id="preview">配管はまだ配置されていません。空間追跡が始まったら正面の壁に向け、配置ボタンを押してください。</div>
 <div id="pointer" aria-hidden="true"></div>
 <aside class="panel is-collapsed" id="panel" aria-label="AR操作"><div class="panelHead"><div><div class="eyebrow">LIVE AR / HAND CONTROL</div><h1>バルブを手で回す</h1></div><button class="btn" id="collapse" type="button" aria-expanded="false">操作を開く</button></div><div class="panelbody">
@@ -37,7 +48,7 @@ details{font-size:12px;line-height:1.7;color:#56676b;margin-top:13px}summary{cur
 <div class="status" data-status="loading" role="status" aria-live="polite" id="status"><span class="dot"></span><span id="statusText">ARエンジンを読み込み中です。</span></div>
 <button type="button" id="start" class="btn primary" disabled>ARカメラを開始</button>
 <div class="controls"><button id="place" type="button" class="btn" disabled>この向きに配管を配置</button><button id="reset" type="button" class="btn" disabled>配置を解除</button></div>
-<div class="section"><h2>配管の種類</h2><div class="grid3" role="group" aria-label="設備の種類"><button class="btn" type="button" data-mode="water" aria-pressed="true">給水</button><button class="btn" type="button" data-mode="air" aria-pressed="false">空調</button><button class="btn" type="button" data-mode="plant" aria-pressed="false">工場</button></div><button id="regen" type="button" class="btn">配管を再生成</button></div>
+<div class="section"><h2>空間認識</h2><div id="trackingDetails" role="status" style="font-size:12px;line-height:1.6;margin-bottom:9px">未開始</div><button id="rescan" type="button" class="btn" disabled>空間認識をやり直す</button><p class="notice">模様の少ない壁だけでは認識しにくいため、床や家具など特徴がある場所もゆっくり映してください。壁の位置を自動検出する機能ではありません。</p></div><div class="section"><h2>配管の種類</h2><div class="grid3" role="group" aria-label="設備の種類"><button class="btn" type="button" data-mode="water" aria-pressed="true">給水</button><button class="btn" type="button" data-mode="air" aria-pressed="false">空調</button><button class="btn" type="button" data-mode="plant" aria-pressed="false">工場</button></div><button id="regen" type="button" class="btn">配管を再生成</button></div>
 <div class="section"><label for="valveSelect">操作するバルブ</label><select id="valveSelect"><option value="0">V-01</option><option value="1">V-02</option><option value="2">V-03</option></select><div class="setting"><label for="opening" style="margin:0">開度</label><input id="opening" type="range" min="0" max="100" value="100"><output for="opening" id="openingOut">100%</output></div><button id="toggle" type="button" class="btn">選択したバルブを閉める</button><div id="flowSummary" role="status" style="margin-top:9px;font-size:12px">通水系統：3 / 3</div></div>
 <div class="section"><h2>手認識</h2><div id="handState" role="status" style="font-size:12px;line-height:1.6">配管を配置すると手認識を準備します。</div><button type="button" class="btn" id="handRetry" style="display:none;margin-top:10px">手認識を再試行</button><div class="handAdjust"><label for="handTransform">指先表示の位置補正</label><select id="handTransform"><option value="normal">標準</option><option value="mirror">左右反転</option><option value="cw90">右90°回転</option><option value="ccw90">左90°回転</option><option value="rotate180">180°回転</option></select></div><p class="notice">指先の目印と実際の手がずれる場合だけ補正してください。映像の縦横比に合わせた座標変換を行います。</p><p class="notice">1本の指を立てるだけでは作動しません。ピンチして手首を回転するか、開いた手を約1.4秒かざす方式です。</p></div>
 <details><summary>操作方法と制約</summary><ol><li>周囲が明るく、特徴のある壁へカメラを向けてARを開始します。</li><li>追跡が安定したら「この向きに配管を配置」を押します。表示位置はカメラ前方を基準にした推定位置で、壁面の自動検出ではありません。</li><li>バルブに手を近づけてピンチ・回転。認識に失敗する場合は画面タップ、スライダーでも操作できます。</li><li>配置したモデルはリセットするまで同じワールド座標を使います。追跡が失われるとズレる場合があります。</li></ol></details>
