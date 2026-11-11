@@ -35,3 +35,15 @@ iPhoneのSafariなどで配管を空間内に固定し、手のジェスチャ�
 `node tests/ar-hand.test.cjs && node tests/hand-screen-map.test.cjs && node tests/piping.test.cjs && node tests/gesture.test.cjs`
 
 GitHub Actions `ar-hand-qa.yml`でも同等のテストを実行する。これらは実機AR動作の証明にはならない。
+
+## v0.8.2 — AR優先の画面と負荷・復帰対策
+
+- `index.html` は一体型ARの入口とし、従来の2Dカメラ重ね合わせデモをメイン導線から外した。従来機能は `legacy-demo.html` に退避。
+- 手認識モデルはARカメラ起動時ではなく、3D配管を空間に配置した後に非同期初期化する。通信・推論によりARの初回起動を妨げないようにする。
+- 手認識に失敗してもタップとスライダーで操作でき、手認識の再試行ボタンを利用できる。
+- 非表示から復帰したとき、保持していたピンチ操作を破棄して誤操作を防ぐ。
+- 接合部の球体をノードごとに重複生成せず、共有ジオメトリを再利用。再生成時の3D資源解放は同一ジオメトリを一度だけ行う。
+- `tests/entrypoint.test.cjs` でAR優先の導線を検証する。
+- 8th Wallの`onAttach`で動画要素が渡される仕様、および`processCpuResult.reality.trackingStatus`を確認して実装。実機によるSDKの正常動作の検証は別途必要。
+
+**実機未検証事項:** iOS SafariでのSLAM追跡、MediaPipeの手座標一致、XR8エンジンの動画描画、パフォーマンス・発熱。自動テスト合格はこれらの動作保証ではない。
