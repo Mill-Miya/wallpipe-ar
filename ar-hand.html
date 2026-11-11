@@ -18,10 +18,14 @@
 details{font-size:12px;line-height:1.7;color:#56676b;margin-top:13px}summary{cursor:pointer;font-weight:700;color:#2c5258}details ol{padding-left:21px}details li{margin:6px 0}.notice{font-size:11px!important;color:#6c7778!important}
 @media(max-width:720px){.topbar{min-height:58px;padding:calc(7px + env(safe-area-inset-top)) 13px 7px}.brand{font-size:14px}.brand small{font-size:10px}.topbar a{font-size:10px}.panel{left:0;right:0;top:auto;bottom:0;width:100%;max-height:60dvh;border-left:0;border-right:0;border-bottom:0;box-shadow:0 -2px 12px #152e2910;padding:10px 16px calc(10px + env(safe-area-inset-bottom))}.panel.is-collapsed{max-height:none}.panel.is-collapsed .panelbody{display:none}.panelHead{display:flex;align-items:center;justify-content:space-between;gap:12px}.panelHead h1{font-size:15px;margin:0}.panelHead .eyebrow{font-size:9px;margin-bottom:3px}#collapse{display:block!important;white-space:nowrap;width:auto;min-height:42px}.panel p{margin-bottom:9px}.status{margin:8px 0;padding:8px 0}#preview{top:calc(72px + env(safe-area-inset-top));left:12px;right:12px;max-width:none;font-size:11px;padding:8px}#info{left:12px;right:12px;bottom:calc(110px + env(safe-area-inset-bottom));font-size:10px;max-height:50px;overflow:hidden}.panel.is-collapsed~#info{bottom:100px}}
 @media(min-width:721px){#collapse{display:none!important}}@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}}
+
+#quickAction{position:fixed;z-index:3;left:18px;bottom:calc(82px + env(safe-area-inset-bottom));min-height:48px;padding:11px 18px;background:var(--accent);color:white;border:1px solid var(--accent);border-radius:2px;font-size:13px;font-weight:700;cursor:pointer}
+#quickAction[hidden]{display:none}#quickAction:disabled{opacity:.65;cursor:not-allowed}
+.handAdjust{display:flex;align-items:center;gap:10px;justify-content:space-between}.handAdjust label{font-size:12px;line-height:1.5}.handAdjust select{min-width:132px;max-width:160px;border:1px solid #a7bcb7;padding:8px 5px;background:white;color:var(--ink);font-size:12px;min-height:42px}
+@media(max-width:720px){#quickAction{left:12px;bottom:calc(164px + env(safe-area-inset-bottom));min-height:44px}#info{bottom:calc(110px + env(safe-area-inset-bottom))}}
 </style>
 <!-- 8th Wall binary: Copyright © 2026 Niantic Spatial, Inc. License: https://github.com/8thwall/engine/blob/main/LICENSE -->
 <script src="https://cdn.jsdelivr.net/npm/@8thwall/engine-binary@1/dist/xr.js" async crossorigin="anonymous" data-preload-chunks="slam"></script>
-<script src="https://cdn.jsdelivr.net/npm/@8thwall/xrextras@1/dist/xrextras.js" crossorigin="anonymous"></script>
 </head>
 <body>
 <div id="stage"><canvas id="arCanvas" aria-label="空間固定した3D配管とバルブのAR画面"></canvas></div>
@@ -35,14 +39,17 @@ details{font-size:12px;line-height:1.7;color:#56676b;margin-top:13px}summary{cur
 <div class="controls"><button id="place" type="button" class="btn" disabled>この向きに配管を配置</button><button id="reset" type="button" class="btn" disabled>配置を解除</button></div>
 <div class="section"><h2>配管の種類</h2><div class="grid3" role="group" aria-label="設備の種類"><button class="btn" type="button" data-mode="water" aria-pressed="true">給水</button><button class="btn" type="button" data-mode="air" aria-pressed="false">空調</button><button class="btn" type="button" data-mode="plant" aria-pressed="false">工場</button></div><button id="regen" type="button" class="btn">配管を再生成</button></div>
 <div class="section"><label for="valveSelect">操作するバルブ</label><select id="valveSelect"><option value="0">V-01</option><option value="1">V-02</option><option value="2">V-03</option></select><div class="setting"><label for="opening" style="margin:0">開度</label><input id="opening" type="range" min="0" max="100" value="100"><output for="opening" id="openingOut">100%</output></div><button id="toggle" type="button" class="btn">選択したバルブを閉める</button><div id="flowSummary" role="status" style="margin-top:9px;font-size:12px">通水系統：3 / 3</div></div>
-<div class="section"><h2>手認識</h2><div id="handState" role="status" style="font-size:12px;line-height:1.6">未開始</div><p class="notice">1本の指を立てるだけでは作動しません。ピンチして手首を回転するか、開いた手を約1.4秒かざす方式です。</p></div>
+<div class="section"><h2>手認識</h2><div id="handState" role="status" style="font-size:12px;line-height:1.6">未開始</div><div class="handAdjust"><label for="handTransform">指先表示の位置補正</label><select id="handTransform"><option value="normal">標準</option><option value="mirror">左右反転</option><option value="cw90">右90°回転</option><option value="ccw90">左90°回転</option><option value="rotate180">180°回転</option></select></div><p class="notice">指先の目印と実際の手がずれる場合だけ補正してください。映像の縦横比に合わせた座標変換を行います。</p><p class="notice">1本の指を立てるだけでは作動しません。ピンチして手首を回転するか、開いた手を約1.4秒かざす方式です。</p></div>
 <details><summary>操作方法と制約</summary><ol><li>周囲が明るく、特徴のある壁へカメラを向けてARを開始します。</li><li>追跡が安定したら「この向きに配管を配置」を押します。表示位置はカメラ前方を基準にした推定位置で、壁面の自動検出ではありません。</li><li>バルブに手を近づけてピンチ・回転。認識に失敗する場合は画面タップ、スライダーでも操作できます。</li><li>配置したモデルはリセットするまで同じワールド座標を使います。追跡が失われるとズレる場合があります。</li></ol></details>
 <p class="notice">実際の配管や壁内部は検知しません。手とバルブの距離は画像上で近似し、奥行き方向の接触は判定していません。カメラ映像はアプリ独自のサーバーに送信しませんが、外部SDKと機械学習モデルを読み込みます。</p>
 <p class="notice"><a href="https://github.com/8thwall/engine/blob/main/LICENSE" target="_blank" rel="noopener">XR Engineライセンス</a> ｜ Copyright © 2026 Niantic Spatial, Inc.</p>
 </div></aside>
+<button type="button" id="quickAction" disabled>ARカメラを開始</button>
 <div id="info" role="status" aria-live="polite">ARの開始前です。インターネット接続とカメラへの許可が必要です。</div>
 <script src="./js/piping-engine.js"></script>
 <script src="./js/gesture-control.js"></script>
+<script src="./js/hand-screen-map.js"></script>
+<script src="./js/tracking-gate.js"></script>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 window.THREE=THREE;

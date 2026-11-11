@@ -7,6 +7,9 @@ on:
       - js/ar-hand.js
       - js/gesture-control.js
       - js/piping-engine.js
+      - js/hand-screen-map.js
+      - js/tracking-gate.js
+      - tests/hand-screen-map.test.cjs
       - tests/ar-hand.test.cjs
       - .github/workflows/ar-hand-qa.yml
   workflow_dispatch:
@@ -21,9 +24,11 @@ jobs:
         with:
           node-version: '22'
       - name: JavaScript syntax
-        run: node --check js/ar-hand.js && node --check js/gesture-control.js && node --check js/piping-engine.js
+        run: node --check js/ar-hand.js && node --check js/gesture-control.js && node --check js/piping-engine.js && node --check js/hand-screen-map.js && node --check js/tracking-gate.js
       - name: World tracking and gesture integration contract
         run: node tests/ar-hand.test.cjs
+      - name: Video-screen calibration and SLAM stability
+        run: node tests/hand-screen-map.test.cjs
       - name: Existing piping model regression
         run: node tests/piping.test.cjs
       - name: Existing gesture state regression

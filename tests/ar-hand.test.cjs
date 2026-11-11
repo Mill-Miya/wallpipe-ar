@@ -7,9 +7,15 @@ const Engine=require(path.join(root,'js/piping-engine.js'));
 const G=require(path.join(root,'js/gesture-control.js'));
 const page=fs.readFileSync(path.join(root,'ar-hand.html'),'utf8');
 const app=fs.readFileSync(path.join(root,'js/ar-hand.js'),'utf8');
+const screenMap=fs.readFileSync(path.join(root,'js/hand-screen-map.js'),'utf8');
+const trackingGate=fs.readFileSync(path.join(root,'js/tracking-gate.js'),'utf8');
 function failIfMissing(strings,body,where){for(const s of strings)assert.ok(body.includes(s),`${where}: missing ${s}`)}
 failIfMissing(['@8thwall/engine-binary@1','three.module.js','js/ar-hand.js','XR Engineライセンス','arCanvas','id="place"','id="start"'],page,'HTML');
 failIfMissing(['XR8.Threejs.xrScene','XR8.XrController.updateCameraProjectionMatrix','scale:\'absolute\'','onAttach:({video:sourceVideo})','detectForVideo(video,now)','anchor.position.copy','anchor.rotation.set','anchor.localToWorld','Gestures.step','Engine.solveFlow'],app,'AR integration');
+failIfMissing(['id="quickAction"','id="handTransform"','js/hand-screen-map.js','js/tracking-gate.js'],page,'Alignment and quick launch');
+failIfMissing(['HandMap.mapLandmarks','TrackingGate.update','addValveLabel','updateQuickAction','onDetach:()=>','video.videoWidth'],app,'Tracking and hand alignment');
+failIfMissing(['Math.max(rect.width/w,rect.height/h)','cw90','ccw90','mirror'],screenMap,'Cover crop and orientation');
+failIfMissing(['goodFrames=10','badFrames=3',"status==='NORMAL'"],trackingGate,'SLAM hysteresis');
 // World placement must be user-triggered: attaching a video alone must not auto-anchor.
 assert(/ui\.place\.addEventListener\('click',placeModel\)/.test(app));
 assert(/if\(!tracking\|\|!camera\|\|!anchor\)/.test(app));

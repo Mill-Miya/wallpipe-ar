@@ -94,3 +94,11 @@ Webアプリ: https://mill-miya.github.io/wallpipe-ar/
 - 8th Wall Engine BinaryはMIT版とは異なる**バイナリ専用ライセンス**です。ソースコードに改変・再配布されていないCDN版を使用しています。詳細は[公式ライセンス](https://github.com/8thwall/engine/blob/main/LICENSE)を参照してください。
 
 新設ファイル：`ar-hand.html`、`js/ar-hand.js`、`tests/ar-hand.test.cjs`、`.github/workflows/ar-hand-qa.yml`。以前の2DデモとQuick Lookの空間固定テストは維持しています。
+
+## v0.8.1 空間固定・手認識の安定化
+
+- カメラ映像の縦横比・中央切り抜きを考慮して手の位置を画面に投影します。端末差があるため、指先と目印がずれる場合は手動の向き補正を使います。
+- 空間追跡が短時間安定した後に配管を配置できるようにし、追跡が失われた際は手操作を止めます。
+- 3Dバルブ番号を表示し、スマホで操作パネルを開かなくてもAR開始・配管配置ができます。
+- 自動テストは `tests/hand-screen-map.test.cjs` に追加しました。設計上の制約と実機確認項目は `docs/ar-hand-qa.md` を参照してください。
+- iPhone実機での追跡精度、手の重なり、誤認識、性能は未検証です。平面検出や真の手との3D接触判定ではありません。
