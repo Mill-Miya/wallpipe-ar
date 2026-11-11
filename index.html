@@ -72,6 +72,10 @@ footer{padding-top:16px;font-size:11px;color:#718080;line-height:1.75}footer str
 #spatialEntry:hover{background:#075766}
 @media(max-width:767px){#spatialEntry{top:calc(122px + env(safe-area-inset-top));left:12px;font-size:11px;max-width:calc(100vw - 24px);padding:9px 11px}}
 
+/* Spatial placement prototype: separate from the 2D camera overlay. */
+#spatialNav{position:absolute;z-index:6;left:30px;top:145px;display:inline-block;background:#263a40;color:#fff;border:1px solid #263a40;padding:12px 15px;text-decoration:none;font-size:12px;font-weight:700;line-height:1.25}
+#spatialNav:hover{background:#37535a}#spatialNav:focus-visible{outline:3px solid #d78a3a;outline-offset:3px}
+@media(max-width:767px){#spatialNav{left:12px;top:calc(137px + env(safe-area-inset-top));font-size:11px;padding:10px 12px}}
 </style>
 <script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@4.4.0/dist/model-viewer.min.js"></script>
 <script src="js/piping-engine.js"></script>
@@ -95,6 +99,7 @@ footer{padding-top:16px;font-size:11px;color:#718080;line-height:1.75}footer str
 </header>
 <div id="cameraStatus" role="status"><span class="statusDot"></span><span id="cameraStatusText">仮想壁を表示中・実物配管は検出しません</span></div>
 <a id="spatialEntry" href="./spatial-test.html">空間に配管を固定して見る <span aria-hidden="true">↗</span></a>
+<a id="spatialNav" href="./spatial-test.html">空間固定ARを試す</a>
 <div id="hint">画面をタップして透視開始 ／ バルブを選択して開閉</div>
 <section id="bottom" class="collapsed" aria-labelledby="panelTitle">
 <div class="panelHeader"><div><p class="kicker">CONTROL / 01</p><h2 id="panelTitle">表示・操作</h2><p id="panelSummary" class="panelSummary" role="status" aria-live="polite">SCAN 000 ｜ 待機</p></div><button id="panelToggle" type="button" aria-controls="panelBody" aria-expanded="false">操作を開く</button></div>
