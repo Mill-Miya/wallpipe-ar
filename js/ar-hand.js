@@ -6,11 +6,11 @@ const THREE=window.THREE, Engine=window.WallPipeEngine, Gestures=window.WallPipe
 const HandMap=window.WallPipeHandScreenMap, TrackingGate=window.WallPipeTrackingGate;
 if(!THREE||!Engine||!Gestures||!HandMap||!TrackingGate)throw new Error('Missing WallPipe or three.js dependencies');
 const $=id=>document.getElementById(id);
-const ui={stage:$('stage'),canvas:$('arCanvas'),start:$('start'),place:$('place'),reset:$('reset'),panel:$('panel'),collapse:$('collapse'),preview:$('preview'),status:$('status'),statusText:$('statusText'),info:$('info'),hand:$('handState'),pointer:$('pointer'),opening:$('opening'),openingOut:$('openingOut'),select:$('valveSelect'),toggle:$('toggle'),summary:$('flowSummary'),quick:$('quickAction'),alignment:$('handTransform')};
+const ui={stage:$('stage'),canvas:$('arCanvas'),start:$('start'),place:$('place'),reset:$('reset'),panel:$('panel'),collapse:$('collapse'),preview:$('preview'),status:$('status'),statusText:$('statusText'),info:$('info'),hand:$('handState'),pointer:$('pointer'),opening:$('opening'),openingOut:$('openingOut'),select:$('valveSelect'),toggle:$('toggle'),summary:$('flowSummary'),quick:$('quickAction'),alignment:$('handTransform'),handRetry:$('handRetry')};
 const clamp=(v,lo,hi)=>Math.min(hi,Math.max(lo,v));
 let started=false,scene=null,camera=null,anchor=null,video=null,tracking=false,lastTracking='';
 let mode='water',network=null,openings=[1,1,1],selected=0,modelReady=false,landmarker=null,loadingHand=false;
-let valves=[],flowMarkers=[],gesture=Gestures.createState(),lastInference=0,lastMessage='';
+let valves=[],flowMarkers=[],gesture=Gestures.createState(),lastInference=0,lastMessage='',handInitFailed=false;
 const trackingGate=TrackingGate.createState();
 const colorByMode={water:0x2b8ea1,air:0x368d74,plant:0xb37a38};
 function state(status,message){if(ui.status.dataset.status!==status||ui.statusText.textContent!==message){ui.status.dataset.status=status;ui.statusText.textContent=message;}}
@@ -36,7 +36,7 @@ function buildNetwork(){
  const seed=(Math.random()*4294967295)>>>0;
  network=Engine.makeNetwork({mode,surface:'wall',seed});openings=[1,1,1];Gestures.reset(gesture);selected=0;
  if(!anchor){syncControls();return;}
- for(const child of [...anchor.children]){child.traverse(obj=>{if(obj.geometry)obj.geometry.dispose();});anchor.remove(child);}
+ const disposed=new Set();for(const child of [...anchor.children]){child.traverse(obj=>{if(obj.geometry&&!disposed.has(obj.geometry)){disposed.add(obj.geometry);obj.geometry.dispose();}});anchor.remove(child);}
  for(const m of anchor.userData.materials||[])m.dispose();
  for(const texture of anchor.userData.textures||[])texture.dispose();
  anchor.userData.materials=[];anchor.userData.textures=[];
@@ -57,15 +57,20 @@ function buildNetwork(){
  }
 
  const wallPanel=new THREE.Mesh(new THREE.PlaneGeometry(1.86,1.20),material(0x9caeaa,.0,.12));wallPanel.position.z=-.075;anchor.add(wallPanel);
+ const jointRadius=new Map();
  for(const e of network.edges){
+  jointRadius.set(e.a,Math.max(jointRadius.get(e.a)||0,clamp(e.diameter*.00185,.015,.055)));
+  jointRadius.set(e.b,Math.max(jointRadius.get(e.b)||0,clamp(e.diameter*.00185,.015,.055)));
   const na=network.nodes[e.a],nb=network.nodes[e.b];
   const a=point(na),b=point(nb),r=clamp(e.diameter*.00185,.015,.055);
   const m=e.kind==='return'?returnM:e.kind==='load'?loadM:pipeM;
   addRod(anchor,a,b,r,m);
-  for(const p of [a,b]){const g=new THREE.Mesh(new THREE.SphereGeometry(r*1.04,9,7),jointM);g.position.copy(p);anchor.add(g);}
+  // Shared junction geometry is emitted once per unique node below.
   const pulse=new THREE.Mesh(new THREE.SphereGeometry(Math.max(.021,r*.55),8,7),waterM);
   pulse.visible=false;anchor.add(pulse);flowMarkers.push({mesh:pulse,edge:e,a,b});
  }
+ const junctionShape=new THREE.SphereGeometry(1,9,7);
+ for(const [id,r] of jointRadius){const mesh=new THREE.Mesh(junctionShape,jointM);mesh.position.copy(point(network.nodes[id]));mesh.scale.setScalar(r*1.04);anchor.add(mesh);}
  for(let i=0;i<network.valves.length;i++){
   const v=network.valves[i],e=network.edges[v.edgeId],a=point(network.nodes[e.a]),b=point(network.nodes[e.b]);
   const p=a.clone().add(b).multiplyScalar(.5);p.z=.15;
@@ -97,6 +102,8 @@ function placeModel(){
  anchor.visible=true;anchor.updateMatrixWorld(true);
  modelReady=true;ui.reset.disabled=false;ui.place.disabled=false;
  Gestures.reset(gesture);updateQuickAction();
+ ui.hand.textContent=landmarker?'手認識が有効です。バルブの前でピンチしてください。':'手認識を準備しています…';
+ if(video&&!landmarker&&!loadingHand)initializeHandTracking();
  info('配管を配置しました。左右に動いて側面を確認し、バルブに手をかざしてください。');
 }
 function projectMarkers(){
@@ -116,15 +123,15 @@ function handleGesture(result){
  if(result.kind==='hover')ui.hand.textContent=`V-0${result.index+1} に手をかざし中：${Math.round(result.progress*100)}%`;
 }
 async function initializeHandTracking(){
- if(loadingHand||landmarker)return;
- loadingHand=true;ui.hand.textContent='手認識モデルを読み込み中…';
+ if(loadingHand||landmarker||!video)return;
+ loadingHand=true;handInitFailed=false;ui.handRetry.style.display='none';ui.hand.textContent='手認識モデルを読み込み中…';
  try{
   const {FilesetResolver,HandLandmarker}=await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/vision_bundle.mjs');
   const vision=await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm');
   const opts={baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',delegate:'GPU'},runningMode:'VIDEO',numHands:1,minHandDetectionConfidence:.6,minHandPresenceConfidence:.6,minTrackingConfidence:.6};
   try{landmarker=await HandLandmarker.createFromOptions(vision,opts);}catch(e){console.warn('GPU hand inference unavailable; falling back to CPU',e);opts.baseOptions.delegate='CPU';landmarker=await HandLandmarker.createFromOptions(vision,opts);}
   ui.hand.textContent='手認識が有効です。バルブの前でピンチしてください。';
- }catch(err){console.error('Hand tracker unavailable',err);ui.hand.textContent='手認識を起動できません。画面タップまたはスライダー操作を使用してください。';}
+ }catch(err){console.error('Hand tracker unavailable',err);handInitFailed=true;ui.handRetry.style.display='block';ui.hand.textContent='手認識を起動できません。画面タップ・スライダーで操作するか、再試行してください。';}
  finally{loadingHand=false;}
 }
 function sampleHand(){
@@ -152,8 +159,8 @@ function pipePipelineModule(){return {
   window.XR8.XrController.updateCameraProjectionMatrix({origin:camera.position,facing:camera.quaternion});
   buildNetwork();state('loading','カメラが起動しました。空間追跡を初期化中です。');
  },
- onAttach:({video:sourceVideo})=>{video=sourceVideo||null;initializeHandTracking();},
- onDetach:()=>{video=null;tracking=false;TrackingGate.update(trackingGate,'LIMITED',10,1);showHandPoint(null,'');Gestures.reset(gesture);updateQuickAction();},
+ onAttach:({video:sourceVideo})=>{video=sourceVideo||null;if(modelReady&&!landmarker)initializeHandTracking();},
+ onDetach:()=>{video=null;tracking=false;TrackingGate.update(trackingGate,'LIMITED',10,1);showHandPoint(null,'');Gestures.reset(gesture);updateQuickAction();ui.hand.textContent='ARを再開して配管を配置すると手認識を利用できます。';},
  onUpdate:({processCpuResult})=>{
   const reality=processCpuResult?.reality;
   const status=reality?.trackingStatus||'INITIALIZING';
@@ -177,12 +184,14 @@ function startAR(){
   window.XR8.addCameraPipelineModules([window.XR8.GlTextureRenderer.pipelineModule(),window.XR8.Threejs.pipelineModule(),window.XR8.XrController.pipelineModule(),pipePipelineModule()]);
   window.XR8.run({canvas:ui.canvas});
   info('空間追跡を開始しています。壁の模様が見えるよう、ゆっくりカメラを動かしてください。');
- }catch(err){started=false;ui.start.disabled=false;ui.start.textContent='ARカメラを再試行';state('error','ARの起動に失敗しました。');updateQuickAction();console.error(err);}
+ }catch(err){started=false;ui.stage.classList.remove('running');ui.start.disabled=false;ui.start.textContent='ARカメラを再試行';state('error','ARの起動に失敗しました。');updateQuickAction();console.error(err);}
 }
 function checkEngine(){if(window.XR8){state('ready','ARエンジンの準備ができました。');ui.start.disabled=false;updateQuickAction();return true;}return false;}
 window.addEventListener('xrloaded',checkEngine);
 if(!checkEngine())setTimeout(()=>{if(!window.XR8){state('error','8th Wallエンジンを読み込めません。ネット接続と対応ブラウザを確認してください。');ui.start.disabled=true;}},14000);
 ui.start.addEventListener('click',startAR);
+ui.handRetry.addEventListener('click',()=>{if(video&&!loadingHand){initializeHandTracking();}else ui.hand.textContent='先にARを開始し、配管を配置してください。';});
+document.addEventListener('visibilitychange',()=>{Gestures.reset(gesture);showHandPoint(null,'');lastInference=0;if(document.hidden&&started)ui.hand.textContent='アプリは一時停止中です。';else if(!document.hidden&&started)ui.hand.textContent=handInitFailed?'手認識を再試行するか、タッチで操作してください。':landmarker?'手認識が有効です。':'配管を配置すると手認識を準備します。';});
 ui.quick.addEventListener('click',()=>{if(!started)startAR();else if(!modelReady)placeModel();});
 ui.place.addEventListener('click',placeModel);
 ui.reset.addEventListener('click',resetPlacement);
