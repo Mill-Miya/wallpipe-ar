@@ -26,7 +26,9 @@
   const tip={x:(points[4].x+points[8].x)/2,y:(points[4].y+points[8].y)/2};
   const close=distance(points[4],points[8]) < palm*(state.pinched?.52:.36);
   const rotation=angle(points[0],points[9]);
-  const nearby=nearest(tip,valves,Math.max(56,Math.min(105,palm*.9)));
+  // Projected hand/valve centers differ from physical grip points. Allow a wider,
+  // but bounded, image-space interaction zone; the nearest valve wins.
+  const nearby=nearest(tip,valves,Math.max(92,Math.min(158,palm*1.4)));
   if(close){
    state.hover=-1;state.hoverFired=false;
    if(!state.pinched){
