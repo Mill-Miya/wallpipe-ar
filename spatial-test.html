@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="ja" data-type="software">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f8f8f5">
+<meta name="page-type" content="software">
+<meta name="site-kind" content="software">
+<meta name="description" content="空間固定と視差を確認するためのWallPipe AR立体配管テスト。実物の配管は検出しません。">
+<title>空間固定テスト | WallPipe AR</title>
+<style>
+:root { font-family: Inter,"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,system-ui,sans-serif; --ink:#26383d; --muted:#586c70; --line:#ccd5d2; --surface:#f8f8f5; --ground:#e8ebe8; --action:#087184; }
+* { box-sizing:border-box; }
+html,body { margin:0; min-height:100%; background:var(--ground); color:var(--ink); }
+button,a { font:inherit; }
+:focus-visible { outline:3px solid #d58c31; outline-offset:3px; }
+.siteHead { height:68px; background:var(--surface); border-bottom:1px solid var(--line); padding:0 clamp(16px,3.5vw,40px); display:flex; justify-content:space-between; align-items:center; gap:16px; }
+.brand { font-size:16px; letter-spacing:-.02em; font-weight:760; white-space:nowrap; }
+.brand small { display:block; font-size:10px; color:var(--muted); letter-spacing:.02em; font-weight:500; margin-top:3px; }
+.siteHead a { color:var(--ink); font-size:12px; text-decoration:underline; text-underline-offset:4px; white-space:nowrap; }
+.container { max-width:1450px; margin:auto; min-height:calc(100dvh - 68px); padding:clamp(16px,2.8vw,38px); display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:clamp(16px,3vw,38px); }
+.stage { min-height:510px; position:relative; background:#e1e7e3; border:1px solid #c6d1cc; overflow:hidden; }
+.stage::before { content:""; background-image:linear-gradient(#d2dcd6 1px, transparent 1px),linear-gradient(90deg,#d2dcd6 1px,transparent 1px); background-size:90px 90px; opacity:.7; position:absolute;inset:0;pointer-events:none; }
+model-viewer { position:absolute; inset:0; width:100%; height:100%; --poster-color:#e1e7e3; background:transparent; }
+.previewTag { z-index:2; pointer-events:none; position:absolute; top:19px; left:20px; background:#f7f9f6ee; padding:8px 11px; border-left:3px solid #087184; font-size:11px; color:#42585b; }
+.dimension { z-index:2; pointer-events:none; position:absolute; bottom:18px; left:20px; background:#f7f9f6ee; padding:7px 10px; font:11px ui-monospace,Consolas,monospace; color:#4c6366; max-width:calc(100% - 40px); }
+.arLaunch { position:absolute; left:50%; bottom:70px; transform:translateX(-50%); border:1px solid var(--action); background:var(--action); border-radius:3px; color:white; padding:14px 20px; min-height:49px; font-size:14px; font-weight:720; white-space:nowrap; box-shadow:none; cursor:pointer; }
+.arLaunch:active { transform:translate(-50%,1px); }
+.arLaunch:focus-visible { outline:3px solid #ca862a;outline-offset:3px; }
+.sidebar { align-self:start; display:flex; flex-direction:column; gap:19px; }
+.kicker { font:11px ui-monospace,Consolas,monospace; color:#486972; letter-spacing:.04em; margin:0; }
+h1 { font-size:clamp(26px,2.8vw,39px); letter-spacing:-.04em; line-height:1.2; margin:0; font-weight:760; }
+.lede { font-size:14px; line-height:1.85; margin:0; color:#445a5d; }
+.status { background:#fff; border:1px solid var(--line); padding:13px 14px; display:flex; align-items:flex-start; gap:10px; font-size:12px; line-height:1.6; }
+.dot { width:8px;height:8px;flex:none;border-radius:50%;margin-top:5px;background:#b77a38; }
+.status[data-state="ready"] .dot {background:#168777;} .status[data-state="error"] .dot {background:#c0513a;}
+.guide { border-top:1px solid var(--line); padding-top:17px; }
+.guide h2 { margin:0 0 13px; font-size:15px; letter-spacing:-.01em; }
+.guide ol { margin:0;padding:0;list-style:none;counter-reset:step; }
+.guide li { padding:0 0 14px 35px; counter-increment:step; position:relative; color:#52676b; line-height:1.7; font-size:13px; }
+.guide li::before {content:counter(step,decimal-leading-zero);font:12px ui-monospace,monospace;color:#177788;position:absolute;left:0;top:0;}
+.guide strong { color:#20383d; }
+.caution { border-top:1px solid var(--line); padding-top:15px; color:#56686a; font-size:12px; line-height:1.85; }
+.caution strong {color:#26383d;}
+.linkRow a { color:var(--action); font-size:12px; }
+@media (max-width:960px){.container {grid-template-columns:minmax(0,1fr) 295px;gap:20px;}}
+@media (max-width:760px){.siteHead{height:60px}.container{grid-template-columns:1fr;padding:0 0 20px;gap:0}.stage{min-height:0;height:min(56dvh,540px);border-left:0;border-right:0}.sidebar{padding:22px 18px 10px;gap:15px}.previewTag{top:13px;left:12px}.dimension{left:12px;bottom:12px}.arLaunch{bottom:55px}h1{font-size:27px}.guide li{padding-bottom:10px}.guide{padding-top:15px}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+</style>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@4.4.0/dist/model-viewer.min.js"></script>
+</head>
+<body>
+<header class="siteHead"><div class="brand">WallPipe AR <small>SPATIAL TRACKING / EXPERIMENT</small></div><a href="./index.html">配管シミュレーターに戻る</a></header>
+<main class="container">
+  <section class="stage" aria-label="立体配管モデルのプレビュー">
+    <div class="previewTag">位置固定・視差の検証用3Dモデル</div>
+    <model-viewer id="spatialModel"
+      src="./assets/spatial-wall-probe.glb"
+      ar ar-modes="webxr scene-viewer quick-look" ar-placement="wall" ar-scale="fixed"
+      camera-controls touch-action="pan-y" interaction-prompt="auto"
+      camera-orbit="24deg 76deg 2.55m" min-camera-orbit="auto auto 1.0m" max-camera-orbit="auto auto 5m"
+      environment-image="neutral" exposure="1" shadow-intensity="0.12" field-of-view="34deg"
+      alt="壁に沿った横幅1.6メートルの配管模型。曲がり部分が壁の手前へ約0.4メートル突出するため、横から見ると奥行きが分かる。">
+      <button class="arLaunch" slot="ar-button" type="button" id="launchAR">ARで空間に配置する</button>
+    </model-viewer>
+    <div class="dimension">壁枠 約1.6 m × 1.0 m ／ 奥行き 最大約0.47 m</div>
+  </section>
+  <aside class="sidebar" aria-label="空間追跡のテスト手順">
+    <p class="kicker">EXPERIMENT 01 / WORLD ANCHOR</p>
+    <h1>壁に配管を固定する</h1>
+    <p class="lede">配管は画面上に重ねるのではなく、AR空間の1か所に配置します。スマホを左右に動かし、配管の奥行きと側面が見えるか確認してください。</p>
+    <div class="status" id="status" data-state="loading" role="status" aria-live="polite"><span class="dot"></span><span id="statusText">3Dモデルを読み込み中です…</span></div>
+    <section class="guide"><h2>確認手順</h2><ol>
+      <li><strong>Safariで開く。</strong> 3Dモデルが表示されたら「ARで空間に配置する」を押します。</li>
+      <li><strong>壁の模様や角が見えるように動かす。</strong> カメラが平面を認識したら、配管モデルを壁へ移動・配置します。</li>
+      <li><strong>配置後はモデルを触らず横へ移動する。</strong> 壁枠が同じ場所に残り、配管の奥行きが変わって見えるか確かめます。</li>
+    </ol></section>
+    <div class="caution"><strong>今回の到達点と制約</strong><br>
+      このモデルは仮想配管です。実際の壁の内部は透視・検出しません。iOSのAR Quick Lookでは壁への自動配置を強制できない場合があり、操作中に床へ配置されることもあります。位置固定はARセッション中だけで、アプリを開き直して同じ場所に復元する機能はありません。バルブの開閉操作はこのテストでは対象外です。
+    </div>
+    <div class="linkRow"><a href="./index.html">既存の配管生成・バルブ操作へ戻る</a></div>
+  </aside>
+</main>
+<script>
+(() => {
+  const model=document.getElementById('spatialModel');
+  const state=document.getElementById('status');
+  const statusText=document.getElementById('statusText');
+  const launch=document.getElementById('launchAR');
+  let loaded=false, errored=false;
+  const set=(kind,text)=>{state.dataset.state=kind;statusText.textContent=text;};
+  // A system AR session is deliberately NOT represented as a continuous Web camera overlay.
+  model.addEventListener('load',()=>{loaded=true;checkAR();});
+  model.addEventListener('error',()=>{errored=true;set('error','3Dモデルを読み込めません。通信環境を確認してください。');});
+  model.addEventListener('ar-status',e=>{
+    const status=e.detail.status;
+    if(status==='failed')set('error','ARの起動に失敗しました。端末の対応状況とブラウザを確認してください。');
+    else if(status==='session-started')set('ready','ARセッションを開始しました。モデルを空間へ配置してください。');
+    else if(status==='object-placed')set('ready','モデルが配置されました。横へ移動して視差を確認してください。');
+    else if(status==='not-presenting')checkAR();
+  });
+  launch.addEventListener('click',()=>{if(!errored)set('loading','ARを起動しています。端末の画面案内に従ってください。');});
+  function checkAR(){
+    if(errored||!loaded)return;
+    if(model.canActivateAR){set('ready','3Dモデルは準備完了です。ARを起動し、壁へ手動で配置してください。');}
+    else{set('loading','3Dモデルは表示できます。このブラウザでARが利用できない場合は、対応iPhoneのSafariから開いてください。');}
+  }
+  customElements.whenDefined('model-viewer').then(()=>{if(loaded)checkAR();});
+})();
+</script>
+</body>
+</html>
