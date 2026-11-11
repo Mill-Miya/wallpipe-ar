@@ -66,6 +66,12 @@ footer{padding-top:16px;font-size:11px;color:#718080;line-height:1.75}footer str
 #systemScheme{margin-top:12px}
 #cameraStatus{max-width:min(700px,calc(100vw - 390px))}
 @media(max-width:767px){#hint{max-width:calc(100vw - 24px)}#cameraStatus{max-width:calc(100vw - 24px)}.scanMeta{flex-wrap:wrap}.scanMeta button{flex:none}}
+
+/* Spatial parallax test is distinct from the screen-space overlay. */
+#spatialEntry{position:absolute;z-index:6;top:143px;left:30px;padding:11px 13px;color:#fff;background:#087184;border:1px solid #076276;border-radius:3px;text-decoration:none;font-size:12px;font-weight:700;line-height:1.4;max-width:calc(100vw - 390px)}
+#spatialEntry:hover{background:#075766}
+@media(max-width:767px){#spatialEntry{top:calc(122px + env(safe-area-inset-top));left:12px;font-size:11px;max-width:calc(100vw - 24px);padding:9px 11px}}
+
 </style>
 <script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@4.4.0/dist/model-viewer.min.js"></script>
 <script src="js/piping-engine.js"></script>
@@ -88,6 +94,7 @@ footer{padding-top:16px;font-size:11px;color:#718080;line-height:1.75}footer str
 <div class="topTools"><span class="viewCaption" id="viewCaption">2D 模式図</span><button id="viewSwitch" type="button" aria-pressed="false">3D / AR に切替</button></div>
 </header>
 <div id="cameraStatus" role="status"><span class="statusDot"></span><span id="cameraStatusText">仮想壁を表示中・実物配管は検出しません</span></div>
+<a id="spatialEntry" href="./spatial-test.html">空間に配管を固定して見る <span aria-hidden="true">↗</span></a>
 <div id="hint">画面をタップして透視開始 ／ バルブを選択して開閉</div>
 <section id="bottom" class="collapsed" aria-labelledby="panelTitle">
 <div class="panelHeader"><div><p class="kicker">CONTROL / 01</p><h2 id="panelTitle">表示・操作</h2><p id="panelSummary" class="panelSummary" role="status" aria-live="polite">SCAN 000 ｜ 待機</p></div><button id="panelToggle" type="button" aria-controls="panelBody" aria-expanded="false">操作を開く</button></div>
