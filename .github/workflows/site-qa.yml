@@ -1,0 +1,30 @@
+name: WallPipe static and model QA
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'spatial-test.html'
+      - 'assets/**'
+      - 'js/**'
+      - 'tests/**'
+      - '.github/workflows/site-qa.yml'
+      - 'README.md'
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '20 10 * * *' # Daily 19:20 JST; no code is modified by this check
+permissions:
+  contents: read
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify valve network calculations
+        run: node tests/piping.test.cjs
+      - name: Verify pages, scripts and GLB models
+        run: node tests/site.test.mjs
