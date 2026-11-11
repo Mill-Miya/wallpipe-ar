@@ -11,7 +11,7 @@ const screenMap=fs.readFileSync(path.join(root,'js/hand-screen-map.js'),'utf8');
 const trackingGate=fs.readFileSync(path.join(root,'js/tracking-gate.js'),'utf8');
 function failIfMissing(strings,body,where){for(const s of strings)assert.ok(body.includes(s),`${where}: missing ${s}`)}
 failIfMissing(['@8thwall/engine-binary@1','three.module.js','js/ar-hand.js','XR Engineライセンス','arCanvas','id="place"','id="start"'],page,'HTML');
-failIfMissing(['XR8.Threejs.xrScene','XR8.XrController.updateCameraProjectionMatrix','scale:\'absolute\'','onAttach:({video:sourceVideo})','detectForVideo(video,now)','anchor.position.copy','anchor.rotation.set','anchor.localToWorld','Gestures.step','Engine.solveFlow'],app,'AR integration');
+failIfMissing(['XR8.Threejs.xrScene','XR8.XrController.updateCameraProjectionMatrix','scale:\'absolute\'','onAttach:({video:sourceVideo,stream:sourceStream})','detectForVideo(video,now)','anchor.position.copy','anchor.rotation.set','anchor.localToWorld','Gestures.step','Engine.solveFlow'],app,'AR integration');
 failIfMissing(['id="quickAction"','id="handTransform"','id="handRetry"','js/hand-screen-map.js','js/tracking-gate.js'],page,'Alignment and quick launch');
 failIfMissing(['HandMap.mapLandmarks','TrackingGate.update','addValveLabel','updateQuickAction','onDetach:()=>','video.videoWidth','junctionShape','jointRadius','visibilitychange','handInitFailed'],app,'Tracking, cleanup, and hand alignment');
 assert(app.includes("if(video&&!landmarker&&!loadingHand)initializeHandTracking()"),'Hand model should initialize after placement');
@@ -22,6 +22,11 @@ failIfMissing(['XRExtras.FullWindowCanvas.pipelineModule','ui.rescan.addEventLis
 failIfMissing(["type==='butterfly'","type==='ball'","type==='gate'","type==='control'","TorusGeometry","collar(anchor","supports>=4","jointRadius"],app,'Procedural hardware geometry');
 assert(page.includes('width:100vw!important')&&page.includes('height:100dvh!important'),'Fullscreen canvas layout must remain enabled');
 
+// Regression: iPhone landscape/portrait image alignment, smaller initial model,
+ // and visible diagnostics are required before claiming AR hand usability.
+failIfMissing(['id="handHud"','id="placeScale"','id="placeDistance"','value="2.2"','value="0.72"'],page,'AR viewport and hand visibility');
+failIfMissing(['handStatus','ownedVideo.srcObject=sourceStream','anchor.scale.setScalar(Number(ui.scale.value))','ui.scale.disabled=true','lastVideoTime=video.currentTime'],app,'Hand feed and placement scale');
+assert(page.includes('v0.8.4'),'Version should advance with camera UX fixes');
 failIfMissing(['goodFrames=10','badFrames=3',"status==='NORMAL'"],trackingGate,'SLAM hysteresis');
 // World placement must be user-triggered: attaching a video alone must not auto-anchor.
 assert(/ui\.place\.addEventListener\('click',placeModel\)/.test(app));
