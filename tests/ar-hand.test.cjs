@@ -17,6 +17,11 @@ failIfMissing(['HandMap.mapLandmarks','TrackingGate.update','addValveLabel','upd
 assert(app.includes("if(video&&!landmarker&&!loadingHand)initializeHandTracking()"),'Hand model should initialize after placement');
 assert(!app.includes("onAttach:({video:sourceVideo})=>{video=sourceVideo||null;initializeHandTracking()"),'Do not start MediaPipe before AR placement');
 failIfMissing(['Math.max(rect.width/w,rect.height/h)','cw90','ccw90','mirror'],screenMap,'Cover crop and orientation');
+failIfMissing(['@8thwall/xrextras@1','id="rescan"','id="placeDistance"','id="placeHeight"','id="targetReticle"','arCanvas'],page,'XR camera recovery and placement');
+failIfMissing(['XRExtras.FullWindowCanvas.pipelineModule','ui.rescan.addEventListener','anchor.position.y+=Number(ui.height.value)','Number(ui.distance.value)','ui.reticle.classList.add','ui.distance.disabled=true'],app,'World-space placement controls');
+failIfMissing(["type==='butterfly'","type==='ball'","type==='gate'","type==='control'","TorusGeometry","collar(anchor","supports>=4","jointRadius"],app,'Procedural hardware geometry');
+assert(page.includes('width:100vw!important')&&page.includes('height:100dvh!important'),'Fullscreen canvas layout must remain enabled');
+
 failIfMissing(['goodFrames=10','badFrames=3',"status==='NORMAL'"],trackingGate,'SLAM hysteresis');
 // World placement must be user-triggered: attaching a video alone must not auto-anchor.
 assert(/ui\.place\.addEventListener\('click',placeModel\)/.test(app));
