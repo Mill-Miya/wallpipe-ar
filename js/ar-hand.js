@@ -56,7 +56,7 @@ function buildNetwork(){
   c.fillStyle='#fff';c.font='bold 29px monospace';c.textAlign='center';c.fillText('V-0'+(index+1),80,36);
   const tex=new THREE.CanvasTexture(canvas),m=new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:false});
   ownedMaterials.push(m);labelTextures.push(tex);
-  const sprite=new THREE.Sprite(m);sprite.position.set(0,.19,.24);sprite.scale.set(.25,.084,1);parent.add(sprite);
+  const sprite=new THREE.Sprite(m);sprite.position.set(0,.23,.21);sprite.scale.set(.19,.065,1);parent.add(sprite);
  }
  // Translucent reference plane establishes a physical depth cue when viewed obliquely.
  const wallPanel=at(anchor,new THREE.PlaneGeometry(1.88,1.24),material(0x92a9a2,0,.075));
@@ -226,7 +226,7 @@ function pipePipelineModule(){return {
    else{state('loading',status==='NORMAL'?'位置を安定化しています…':'追跡が不安定です。壁だけでなく模様のある床や家具もゆっくり映してください。');ui.place.disabled=true;}
    updateQuickAction();
   }
-  if(tracking){sampleHand();animateFlow();}else{showHandPoint(null,'');Gestures.reset(gesture);}
+  if(tracking){sampleHand();animateFlow();}else{showHandPoint(null,'');Gestures.reset(gesture);if(modelReady)handStatus('idle','手認識：空間追跡の復帰待ち');}
  },
  onCameraStatusChange:({status})=>{if(status==='failed')state('error','カメラを開始できません。Safariのカメラ権限を確認してください。');else if(status==='hasVideo')ui.trackingDetails.textContent='カメラ映像は取得済み。SLAMの初期化を確認中。';},
  onException:(e)=>{state('error','AR処理でエラーが発生しました。');console.error(e);}
