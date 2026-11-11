@@ -27,7 +27,7 @@ function refreshFlow(){
  let summary;
  try{summary=Engine.solveFlow(network,openings);}catch(e){state('error','流量計算に失敗しました。');console.error(e);return;}
  ui.summary.textContent=`通水系統：${summary.active} / ${network.terminals.length}（相対流量 ${summary.total.toFixed(2)}）`;
- for(const v of valves){v.handle.rotation.z=(1-openings[v.index])*Math.PI*.5;v.ring.material.color.setHex(openings[v.index]>.01?0x247b76:0xac6748);}
+ for(const v of valves){const op=openings[v.index],shut=1-op;v.handle.rotation.z=(v.type==='gate'||v.type==='control')?shut*Math.PI*3:shut*Math.PI*.5;if(v.type==='gate'||v.type==='control')v.handle.position.z=.187+op*.018;if(v.disc)v.disc.rotation.y=op*Math.PI*.5;v.ring.material.color.setHex(op>.01?0x829a9a:0x9c7564);}
 }
 function setOpening(index,value){if(!Number.isFinite(value))return;openings[index]=clamp(Math.round(value*100)/100,0,1);refreshFlow();if(index===selected)syncControls();}
 function addRod(parent,a,b,r,mat){const d=new THREE.Vector3().subVectors(b,a),len=d.length();if(len<.0001)return null;const obj=new THREE.Mesh(new THREE.CylinderGeometry(r,r,len,12),mat);obj.position.copy(a).add(b).multiplyScalar(.5);obj.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());parent.add(obj);return obj;}
@@ -41,49 +41,78 @@ function buildNetwork(){
  for(const texture of anchor.userData.textures||[])texture.dispose();
  anchor.userData.materials=[];anchor.userData.textures=[];
  valves=[];flowMarkers=[];
- const material=(color,metalness=.3,opacity=1)=>new THREE.MeshStandardMaterial({color,metalness,roughness:.49,transparent:opacity<1,opacity,depthWrite:opacity===1});
- const pipeM=material(0x859b9b,.55),returnM=material(0x768890,.48),loadM=material(0xbd9160,.45);
- const jointM=material(0xb0bdba,.4),valveM=material(0xcbd3ce,.45),leverM=material(0xdfa34d,.35);
- const waterM=material(colorByMode[mode],.1);
- const labelMaterials=[],labelTextures=[];
+ const ownedMaterials=[],labelTextures=[];
+ const material=(color,metalness=.4,opacity=1)=>{const m=new THREE.MeshStandardMaterial({color,metalness,roughness:.51,transparent:opacity<1,opacity,depthWrite:opacity===1});ownedMaterials.push(m);return m;};
+ const tint={water:[0x7b9ca6,0x6d8493],air:[0x829f98,0x69828d],plant:[0x998b7b,0x7b828a]}[mode];
+ const pipeM=material(tint[0],.55),returnM=material(tint[1],.48),loadM=material(0xb48f65,.43);
+ const jointM=material(0xb0bcb9,.48),valveM=material(0x869c9f,.53),leverM=material(0xd3a157,.44),wheelM=material(0x485961,.43);
+ const waterM=material(colorByMode[mode],.06);
+ function at(parent,geom,mat,pos){const o=new THREE.Mesh(geom,mat);if(pos)o.position.copy(pos);parent.add(o);return o;}
+ function collar(parent,p,r,axis,ratio=1.2){const c=at(parent,new THREE.CylinderGeometry(r*ratio,r*ratio,.026,14),jointM,p);c.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),axis);return c;}
  function addValveLabel(parent,index){
-  const canvas=document.createElement('canvas');canvas.width=192;canvas.height=64;
-  const c=canvas.getContext('2d');c.fillStyle='#173d43';c.fillRect(0,0,192,64);
-  c.fillStyle='#ffffff';c.font='bold 34px monospace';c.textAlign='center';
-  c.fillText('V-0'+(index+1),96,44);
-  const tex=new THREE.CanvasTexture(canvas);const m=new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:false});
-  const sprite=new THREE.Sprite(m);sprite.position.set(0,.17,.11);sprite.scale.set(.30,.10,1);parent.add(sprite);
-  labelMaterials.push(m);labelTextures.push(tex);
+  const canvas=document.createElement('canvas');canvas.width=160;canvas.height=52;
+  const c=canvas.getContext('2d');c.fillStyle='#173d43';c.fillRect(0,0,160,52);
+  c.fillStyle='#fff';c.font='bold 29px monospace';c.textAlign='center';c.fillText('V-0'+(index+1),80,36);
+  const tex=new THREE.CanvasTexture(canvas),m=new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:false});
+  ownedMaterials.push(m);labelTextures.push(tex);
+  const sprite=new THREE.Sprite(m);sprite.position.set(0,.19,.24);sprite.scale.set(.25,.084,1);parent.add(sprite);
  }
-
- const wallPanel=new THREE.Mesh(new THREE.PlaneGeometry(1.86,1.20),material(0x9caeaa,.0,.12));wallPanel.position.z=-.075;anchor.add(wallPanel);
- const jointRadius=new Map();
+ // Translucent reference plane establishes a physical depth cue when viewed obliquely.
+ const wallPanel=at(anchor,new THREE.PlaneGeometry(1.88,1.24),material(0x92a9a2,0,.075));
+ wallPanel.position.z=-.11;
+ const jointRadius=new Map(),degrees=new Map(),pulseGeo=new THREE.SphereGeometry(.020,8,6);
  for(const e of network.edges){
-  jointRadius.set(e.a,Math.max(jointRadius.get(e.a)||0,clamp(e.diameter*.00185,.015,.055)));
-  jointRadius.set(e.b,Math.max(jointRadius.get(e.b)||0,clamp(e.diameter*.00185,.015,.055)));
-  const na=network.nodes[e.a],nb=network.nodes[e.b];
-  const a=point(na),b=point(nb),r=clamp(e.diameter*.00185,.015,.055);
+  const r=clamp(e.diameter*.00172,.014,.052);
+  for(const id of [e.a,e.b]){jointRadius.set(id,Math.max(jointRadius.get(id)||0,r));degrees.set(id,(degrees.get(id)||0)+1);}
+  const a=point(network.nodes[e.a]),b=point(network.nodes[e.b]);
   const m=e.kind==='return'?returnM:e.kind==='load'?loadM:pipeM;
   addRod(anchor,a,b,r,m);
-  // Shared junction geometry is emitted once per unique node below.
-  const pulse=new THREE.Mesh(new THREE.SphereGeometry(Math.max(.021,r*.55),8,7),waterM);
-  pulse.visible=false;anchor.add(pulse);flowMarkers.push({mesh:pulse,edge:e,a,b});
+  // A pipe sleeve shows the transition between a header and a smaller branch.
+  if(e.kind==='supply'&&r>.032)collar(anchor,a.clone().lerp(b,.83),r,b.clone().sub(a).normalize(),1.14);
+  const pulse=at(anchor,pulseGeo,waterM,a.clone());
+  pulse.visible=false;flowMarkers.push({mesh:pulse,edge:e,a,b});
  }
- const junctionShape=new THREE.SphereGeometry(1,9,7);
- for(const [id,r] of jointRadius){const mesh=new THREE.Mesh(junctionShape,jointM);mesh.position.copy(point(network.nodes[id]));mesh.scale.setScalar(r*1.04);anchor.add(mesh);}
- for(let i=0;i<network.valves.length;i++){
+ const junctionShape=new THREE.SphereGeometry(1,12,9);
+ for(const [id,r] of jointRadius){
+  const p=point(network.nodes[id]),j=at(anchor,junctionShape,jointM,p);
+  j.scale.setScalar(r*1.06);
+  if((degrees.get(id)||0)>=3)at(anchor,new THREE.BoxGeometry(r*2.05,r*2.05,.025),jointM,p.clone().add(new THREE.Vector3(0,0,-.021)));
+ }
+ // A few support standoffs connect the long runs to the wall.
+ let supports=0;
+ for(const [id,degree] of degrees){if(degree<2||supports>=4)continue;
+  const p=point(network.nodes[id]);p.z=-.035;
+  at(anchor,new THREE.BoxGeometry(.032,.027,.14),wheelM,p);supports++;
+ }
+ function makeValve(i){
   const v=network.valves[i],e=network.edges[v.edgeId],a=point(network.nodes[e.a]),b=point(network.nodes[e.b]);
-  const p=a.clone().add(b).multiplyScalar(.5);p.z=.15;
+  const p=a.clone().add(b).multiplyScalar(.5),axis=b.clone().sub(a).normalize();
+  const r=clamp(e.diameter*.00172,.014,.052);
+  // Flanged connections are anchored on either side of the real flow axis.
+  for(const t of [-.5,.5])collar(anchor,p.clone().addScaledVector(axis,t*.18),Math.max(r,.029),axis,1.55);
+  const type=mode==='water'?'ball':mode==='air'?'control':['gate','ball','butterfly'][i%3];
   const base=new THREE.Group();base.position.copy(p);anchor.add(base);
-  const ring=new THREE.Mesh(new THREE.TorusGeometry(.074,.017,8,18),valveM.clone());base.add(ring);
-  const stem=new THREE.Mesh(new THREE.CylinderGeometry(.026,.026,.14,10),jointM);stem.rotation.x=Math.PI/2;stem.position.z=.079;base.add(stem);
-  const handle=new THREE.Group();handle.position.z=.17;base.add(handle);
-  const lever=new THREE.Mesh(new THREE.BoxGeometry(.20,.032,.04),leverM);lever.position.x=.065;handle.add(lever);
-  const hub=new THREE.Mesh(new THREE.SphereGeometry(.04,10,7),valveM);handle.add(hub);
+  const ring=at(base,new THREE.SphereGeometry(1,14,10),material(0x8a9e9e,.54));
+  ring.scale.set(type==='butterfly'?.059:.10,type==='butterfly'?.06:.081,type==='butterfly'?.03:.058);
+  const bonnet=at(base,new THREE.CylinderGeometry(.031,.047,type==='gate'?.17:.105,12),valveM,new THREE.Vector3(0,0,type==='gate'?.125:.085));
+  bonnet.rotation.x=Math.PI/2;
+  addRod(base,new THREE.Vector3(0,0,.08),new THREE.Vector3(0,0,.18),.018,jointM);
+  const handle=new THREE.Group();handle.position.z=.187;base.add(handle);
+  let disc=null;
+  if(type==='ball'||type==='butterfly'){
+   const lever=at(handle,new THREE.BoxGeometry(type==='ball'?.23:.17,.026,.032),leverM,new THREE.Vector3(type==='ball'?.09:.065,0,0));
+   at(handle,new THREE.SphereGeometry(.027,9,7),wheelM,new THREE.Vector3(type==='ball'?.19:.135,0,0));
+   if(type==='butterfly'){disc=at(base,new THREE.CylinderGeometry(.052,.052,.017,16),wheelM);disc.rotation.x=Math.PI/2;}
+  }else{
+   at(handle,new THREE.TorusGeometry(.089,.013,8,22),wheelM);
+   for(let k=0;k<4;k++){const t=k*Math.PI/2;addRod(handle,new THREE.Vector3(),new THREE.Vector3(Math.cos(t)*.09,Math.sin(t)*.09,0),.009,wheelM);}
+   at(handle,new THREE.SphereGeometry(.027,9,7),leverM);
+  }
   addValveLabel(base,i);
-  valves.push({index:i,marker:new THREE.Vector3(p.x,p.y,p.z+.10),handle,ring});
+  return {index:i,type,marker:new THREE.Vector3(p.x,p.y,p.z+.17),handle,ring,disc};
  }
- anchor.userData.materials=[pipeM,returnM,loadM,jointM,valveM,leverM,waterM,wallPanel.material,...valves.map(v=>v.ring.material),...labelMaterials];
+ for(let i=0;i<network.valves.length;i++)valves.push(makeValve(i));
+ anchor.userData.materials=ownedMaterials;
  anchor.userData.textures=labelTextures;
  refreshFlow();syncControls();
  ui.preview.textContent='配管は仮想の設備です。配置後はその位置に留まり、端末を動かすと横から観察できます。';
