@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ja" data-type="software">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f6f6f1">
+<meta name="description" content="手のピンチ・回転で仮想バルブを操作するWallPipe ARの実験ページ。実際の配管は検知しません。">
+<title>手でバルブを操作する | WallPipe AR</title>
+<style>
+:root{font-family:system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;color:#263a3e;--ink:#263a3e;--muted:#5c6c6d;--line:#c7d0ca;--paper:#f6f6f1;--action:#087184}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#e9eeea}button,input,select{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,select:focus-visible,canvas:focus-visible,a:focus-visible{outline:3px solid #cf892f;outline-offset:2px}button:disabled{opacity:.5;cursor:not-allowed}
+header{height:66px;padding:0 clamp(14px,2.5vw,34px);background:var(--paper);border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;align-items:center}
+header strong{display:block;font-size:16px;letter-spacing:-.03em}header small{font-size:10px;letter-spacing:.025em;color:var(--muted)}header a{font-size:12px;color:#245d6a;text-decoration:underline;text-underline-offset:4px}
+main{height:calc(100dvh - 66px);min-height:400px;display:grid;grid-template-columns:minmax(0,1fr) 360px}
+.stage{background:#d6e0dc;position:relative;min-width:0;overflow:hidden;background-image:linear-gradient(#b2c4be55 1px,transparent 1px),linear-gradient(90deg,#b2c4be55 1px,transparent 1px);background-size:76px 76px}
+#feed{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none}#feed.selfie{transform:scaleX(-1)}#overlay{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair}
+.stageLabel{position:absolute;top:16px;left:16px;background:#f6f6f1e8;border-left:3px solid var(--action);padding:9px 11px;font:11px ui-monospace,Consolas,monospace;pointer-events:none;max-width:calc(100% - 32px)}
+.instructions{position:absolute;bottom:14px;left:16px;right:16px;background:#f6f6f1de;border:1px solid #d1d8d3;padding:9px 11px;font-size:12px;color:#3d5658;pointer-events:none;line-height:1.5}
+.side{background:var(--paper);border-left:1px solid var(--line);overflow:auto;padding:23px 24px 25px;min-width:0}
+.kicker{font:10px ui-monospace,Consolas,monospace;color:var(--action);letter-spacing:.09em;margin:0 0 8px}h1{font-size:23px;letter-spacing:-.04em;margin:0 0 10px;line-height:1.25}h2{font-size:12px;color:#57696b;margin:0 0 12px;letter-spacing:.025em}
+p{line-height:1.65}.lede{font-size:13px;color:#4e6465;margin:0 0 17px}.section{border-top:1px solid var(--line);padding:17px 0 19px}
+.status{display:flex;gap:8px;align-items:flex-start;min-height:38px;font-size:12px;color:#485f61;line-height:1.5}.dot{display:inline-block;background:#b27d40;border-radius:50%;width:8px;height:8px;flex:none;margin-top:5px}.status[data-state="ready"] .dot{background:#2b8e74}.status[data-state="error"] .dot{background:#be6048}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:8px}.controls button{min-width:0}button,select{background:#fff;border:1px solid #b4c1bb;color:var(--ink);padding:10px 12px;min-height:44px;border-radius:3px;font-size:12px;font-weight:680}button:hover{background:#e8efeb}button.primary{background:var(--action);border-color:var(--action);color:#fff}button[aria-pressed="true"]{border-color:var(--action);background:#d9ebeb;color:#195561}select{width:100%}
+.valueRow{display:flex;align-items:baseline;justify-content:space-between;gap:8px}.valueRow strong{font:600 27px ui-monospace,Consolas,monospace;color:#164c56}.valueRow span{font-size:12px;color:var(--muted)}.range{width:100%;height:28px;accent-color:var(--action);margin:10px 0}.progress{height:5px;background:#d5dfdb}.progress div{height:100%;width:0;background:var(--action)}
+#valveName{font-weight:700}#flowSummary{font-size:12px;color:#586e70;line-height:1.7;margin:10px 0 0}
+.guide{margin:0;padding-left:19px;font-size:12px;line-height:1.85;color:#536768}.note{font-size:11px;color:#637577;line-height:1.75;margin:0}
+@media(max-width:760px){header{height:60px}main{height:auto;min-height:calc(100dvh - 60px);display:block}.stage{height:57dvh;min-height:310px}.side{border-left:0;border-top:1px solid var(--line);padding:20px 17px 35px}.stageLabel{top:10px;left:10px}.instructions{left:10px;right:10px;bottom:10px;font-size:11px}h1{font-size:21px}.section{padding:15px 0}}
+@media(max-width:370px){header{padding:0 10px}header a{font-size:11px}.controls{gap:6px}button{padding:9px 7px}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{transition:none!important;animation:none!important}}
+</style>
+<script src="./js/piping-engine.js" defer></script>
+<script src="./js/gesture-control.js" defer></script>
+</head>
+<body>
+<header><div><strong>WallPipe AR</strong><small>HAND INTERACTION / EXPERIMENT 02</small></div><a href="./spatial-test.html">空間固定テストを見る</a></header>
+<main>
+<section class="stage" id="stage" aria-label="手とバルブのカメラ合成画面">
+ <video id="feed" autoplay muted playsinline aria-label="カメラ映像"></video>
+ <canvas id="overlay" tabindex="0" aria-label="仮想配管と3つのバルブ。タップでバルブを選択できます"></canvas>
+ <div class="stageLabel">手認識・流量連動 / 空間固定ではない</div>
+ <div class="instructions" id="stageHint">カメラがなくても試せます。バルブをタップして選択し、右側の開度スライダーを操作してください。</div>
+</section>
+<aside class="side" aria-label="手操作の設定">
+ <p class="kicker">VALVE CONTROL / 01</p><h1>手でバルブを回す</h1><p class="lede">手の形と回転を認識し、架空の配管の流れを変化させます。</p>
+ <div id="status" class="status" data-state="idle" role="status" aria-live="polite"><span class="dot"></span><span id="statusText">カメラ未起動。手認識はオフです。</span></div>
+ <div class="section"><h2>01 / カメラと認識</h2><div class="controls"><button id="startBtn" class="primary" type="button">カメラを起動</button><button id="stopBtn" type="button" disabled>停止する</button></div><div class="controls" style="margin-top:8px"><button id="rearBtn" type="button" aria-pressed="true">背面カメラ</button><button id="frontBtn" type="button" aria-pressed="false">前面カメラ</button></div><p class="note" style="margin-top:9px">初回にモデルを取得するためネット接続が必要です。認識は端末上で行い、カメラ映像をこのアプリのサーバーに送信しません。</p></div>
+ <div class="section"><h2>02 / 設備モデル</h2><select id="mode" aria-label="設備モデル"><option value="water">給水設備・枝管3系統</option><option value="air">空調設備・並列コイル3系統</option><option value="plant">工場設備・並列設備3系統</option></select><button id="newBtn" type="button" style="width:100%;margin-top:8px">新しい配管を生成</button></div>
+ <div class="section"><h2>03 / 選択中のバルブ</h2><div class="valueRow"><span id="valveName">V-01</span><strong id="valueText">100%</strong></div><input class="range" id="openSlider" type="range" min="0" max="100" step="1" value="100" aria-label="選択中バルブの開度"><div class="progress" aria-hidden="true"><div id="progressFill" style="width:100%"></div></div><div class="controls" style="margin-top:10px"><button id="closeValve" type="button">全閉にする</button><button id="openValve" type="button">全開にする</button></div><p id="flowSummary" role="status">通水中：3系統 / 3系統</p></div>
+ <div class="section"><h2>04 / 手の操作</h2><ol class="guide"><li>背面カメラにもう片方の手を映し、バルブの近くに指を合わせます。</li><li><strong>親指と人差し指でつまみ、手を回転</strong>すると開度が変化します。</li><li>手を開いて<strong>1.4秒かざす</strong>と、バルブの全開・全閉を切り替えます。</li><li>誤操作した場合は下のスライダーで開度を修正できます。</li></ol></div>
+ <p class="note">技術的制約：これは手認識と流量計算を検証する2Dカメラ合成です。実際のバルブや配管は検出しません。空間固定AR（Quick Look）中に手認識を重ねるものではありません。開度と流量は教育用の簡易近似です。</p>
+</aside>
+</main>
+<script type="module">
+const $=id=>document.getElementById(id);
+const engine=window.WallPipeEngine, gesture=window.WallPipeGesture;
+const canvas=$('overlay'),ctx=canvas.getContext('2d'),video=$('feed'),stage=$('stage');
+const state=gesture.createState();
+let network,flow,openings=[1,1,1],selected=0,seed=43,mode='water',camera='environment',stream=null,detector=null;
+let lastVideoTime=-1,lastInferenceAt=0,running=false,frameID=0,point=null,handEvent={kind:'inactive'};
+let centres=[],view={w:0,h:0,s:1,x:0,y:0,dpr:1};
+const color={water:'#247b8b',air:'#568a70',plant:'#b48148'};
+function setStatus(message,state='idle'){$('status').dataset.state=state;$('statusText').textContent=message;}
+function make(){network=engine.makeNetwork({mode,surface:'wall',seed:seed++});openings=[1,1,1];selected=0;gesture.reset(state);flow=engine.solveFlow(network,openings);updateUi();}
+function setOpening(i,value){if(i<0||i>=3)return;const next=Math.max(0,Math.min(1,Number(value)||0));if(Math.abs(next-openings[i])<.002)return;openings[i]=next;flow=engine.solveFlow(network,openings);selected=i;updateUi();}
+function updateUi(){$('valveName').textContent=`V-${String(selected+1).padStart(2,'0')} / ${network.valves[selected].name}`;$('openSlider').value=Math.round(openings[selected]*100);$('valueText').textContent=`${Math.round(openings[selected]*100)}%`;$('progressFill').style.width=`${openings[selected]*100}%`;$('flowSummary').textContent=`通水中：${flow.active}系統 / 3系統　（相対流量 ${flow.total.toFixed(2)}）`;}
+function setup(){const bounds=stage.getBoundingClientRect(),w=bounds.width,h=bounds.height,dpr=Math.min(window.devicePixelRatio||1,2);view={w,h,dpr,s:Math.min((w-36)/700,(h-52)/510),x:w*.5,y:h*.52};canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);centres=[];}
+new ResizeObserver(setup).observe(stage);setup();
+function xy(n){return{x:view.x+n.x*view.s,y:view.y+n.y*view.s};}
+function pipe(a,b,width,stroke){ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.strokeStyle=stroke;ctx.lineWidth=width*view.s;ctx.lineCap='round';ctx.lineJoin='round';ctx.stroke();}
+function draw(now){const{w,h,dpr,s}=view;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);if(network){
+ for(const e of network.edges){const a=xy(network.nodes[e.a]),b=xy(network.nodes[e.b]),width=Math.max(8,12*e.diameter/13);pipe(a,b,width+5,'#526f73');pipe(a,b,width-1,'#b9cfcb');if(Math.abs(e.flow)>.003){const count=Math.max(1,Math.round(Math.hypot(b.x-a.x,b.y-a.y)/65));const offset=(now*.00016*Math.min(1.8,Math.max(.2,e.flow*2)))%1;for(let i=0;i<count;i++){let t=(i/count+offset)%1;const p={x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t},q={x:a.x+(b.x-a.x)*Math.min(t+.02,1),y:a.y+(b.y-a.y)*Math.min(t+.02,1)};const dir=e.flow<0?Math.PI:0;ctx.save();ctx.translate(p.x,p.y);ctx.rotate(Math.atan2(q.y-p.y,q.x-p.x)+dir);ctx.fillStyle=color[mode];ctx.beginPath();ctx.moveTo(6,0);ctx.lineTo(-4,-3);ctx.lineTo(-4,3);ctx.closePath();ctx.fill();ctx.restore();}}}
+ centres=network.valves.map((v,i)=>{const e=network.edges[v.edgeId],a=network.nodes[e.a],b=network.nodes[e.b],p=xy({x:(a.x+b.x)/2,y:(a.y+b.y)/2});const r=15;ctx.save();ctx.translate(p.x,p.y);ctx.fillStyle='#f7f9f4';ctx.strokeStyle=i===selected?'#d98a27':'#3d5960';ctx.lineWidth=i===selected?4:2.4;ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.rotate((openings[i]-.5)*Math.PI/2);ctx.strokeStyle='#267986';ctx.lineWidth=6;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(-9,0);ctx.lineTo(9,0);ctx.stroke();ctx.restore();ctx.textAlign='center';ctx.font='11px ui-monospace,monospace';ctx.fillStyle='#283e43';ctx.fillText(`V-0${i+1}`,p.x,p.y+30);return p;});
+ for(const t of network.terminals){const p=xy(network.nodes[t.nodeId]);ctx.fillStyle='#344e52';ctx.beginPath();ctx.arc(p.x,p.y,4,0,Math.PI*2);ctx.fill();ctx.font='11px system-ui,sans-serif';ctx.textAlign='center';ctx.fillText(t.label,p.x,p.y-11);}
+ for(const [idx,label] of [[network.source,network.sourceLabel],...network.targets.map((t,i)=>[t,network.targetLabel||'使用設備'])]){const p=xy(network.nodes[idx]);ctx.fillStyle='#3b5559';ctx.beginPath();ctx.arc(p.x,p.y,5,0,Math.PI*2);ctx.fill();}
+ }
+ if(point){ctx.save();ctx.strokeStyle=handEvent.kind==='grab'||handEvent.kind==='rotate'?'#d38b2e':'#057f8e';ctx.lineWidth=3;ctx.beginPath();ctx.arc(point.x,point.y,14+(handEvent.kind==='hover'?(1-handEvent.progress)*12:0),0,Math.PI*2);ctx.stroke();if(handEvent.kind==='hover'){ctx.beginPath();ctx.arc(point.x,point.y,19,-Math.PI/2,-Math.PI/2+2*Math.PI*handEvent.progress);ctx.stroke();}ctx.restore();}
+ frameID=requestAnimationFrame(draw);
+}
+function videoPoint(lm){const w=video.videoWidth||640,h=video.videoHeight||480;const scale=Math.max(view.w/w,view.h/h),offX=(view.w-w*scale)/2,offY=(view.h-h*scale)/2;const x=camera==='user'?1-lm.x:lm.x;return{x:offX+x*w*scale,y:offY+lm.y*h*scale};}
+function applyHand(result,time){if(!result?.landmarks?.length){point=null;handEvent=gesture.step(state,null,centres,openings,time);if(running)setStatus('手を探しています。バルブの近くに手を映してください。','ready');return;}
+ const pixels=result.landmarks[0].map(videoPoint);handEvent=gesture.step(state,pixels,centres,openings,time);point=handEvent.point||null;
+ if(handEvent.index>=0)selected=handEvent.index;
+ if(handEvent.kind==='grab')setStatus(`V-0${selected+1}をつかみました。手を回して開度を変更してください。`,'ready');
+ if(handEvent.kind==='rotate'){setOpening(handEvent.index,handEvent.value);}
+ if(handEvent.kind==='dwell-toggle'){setOpening(handEvent.index,handEvent.value);setStatus(`V-0${selected+1}を${handEvent.value?'全開':'全閉'}にしました。`,'ready');}
+ if(handEvent.kind==='hover')setStatus(`V-0${selected+1}に手をかざしています… ${Math.round(handEvent.progress*100)}%`,'ready');
+ if(handEvent.kind==='release')setStatus('操作を確定しました。','ready');
+ if(handEvent.kind==='tracking')setStatus('手を認識中です。バルブのそばでつまむか、手をかざしてください。','ready');
+ updateUi();}
+async function begin(){if(running)return;setStatus('カメラを起動しています…');if(!navigator.mediaDevices?.getUserMedia){setStatus('このブラウザはカメラ非対応です。HTTPS環境と権限を確認してください。','error');return;}
+ try{stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:camera},width:{ideal:960},height:{ideal:720}}});video.srcObject=stream;video.classList.toggle('selfie',camera==='user');video.style.display='block';await video.play();}catch(err){setStatus(`カメラを開始できません：${err.name||err.message}。手動操作は使えます。`,'error');return;}
+ running=true;$('startBtn').disabled=true;$('stopBtn').disabled=false;
+ setStatus('手認識モデルを読み込み中です…（初回は通信が必要）');
+ try{
+  if(!detector){const {FilesetResolver,HandLandmarker}=await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/vision_bundle.mjs');const vision=await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm');const opts={baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',delegate:'GPU'},runningMode:'VIDEO',numHands:1,minHandDetectionConfidence:.55,minHandPresenceConfidence:.55};try{detector=await HandLandmarker.createFromOptions(vision,opts);}catch(_gpuError){opts.baseOptions.delegate='CPU';detector=await HandLandmarker.createFromOptions(vision,opts);}}
+  if(!running)return;setStatus('カメラと手認識が使用できます。','ready');$('stageHint').textContent='手をかざす・つまんで回転でバルブを操作。バルブをタップしてスライダー操作もできます。';requestAnimationFrame(track);
+ }catch(err){setStatus(`手認識モデルの読み込みに失敗しました。接続・端末性能を確認してください（${err.message||err.name}）。`,'error');}}
+function track(time){if(!running)return;if(detector&&video.readyState>=2&&video.currentTime!==lastVideoTime&&time-lastInferenceAt>100){lastVideoTime=video.currentTime;lastInferenceAt=time;try{applyHand(detector.detectForVideo(video,time),time);}catch(err){setStatus(`認識エラー：${err.message||err.name}`,'error');}}
+ requestAnimationFrame(track);}
+function stop(){running=false;for(const t of stream?.getTracks()||[])t.stop();stream=null;video.srcObject=null;video.style.display='none';$('startBtn').disabled=false;$('stopBtn').disabled=true;point=null;gesture.reset(state);setStatus('カメラ停止。タップとスライダーは利用できます。');}
+$('startBtn').addEventListener('click',begin);$('stopBtn').addEventListener('click',stop);
+for(const [id,kind] of [['rearBtn','environment'],['frontBtn','user']])$(id).addEventListener('click',()=>{camera=kind;$('rearBtn').setAttribute('aria-pressed',String(kind==='environment'));$('frontBtn').setAttribute('aria-pressed',String(kind==='user'));if(running){stop();begin();}});
+$('mode').addEventListener('change',e=>{mode=e.target.value;make();});$('newBtn').addEventListener('click',make);
+$('openSlider').addEventListener('input',e=>setOpening(selected,Number(e.target.value)/100));$('closeValve').addEventListener('click',()=>setOpening(selected,0));$('openValve').addEventListener('click',()=>setOpening(selected,1));
+canvas.addEventListener('pointerup',e=>{const r=canvas.getBoundingClientRect(),p={x:e.clientX-r.left,y:e.clientY-r.top};const i=gesture.nearest(p,centres,55);if(i>=0){selected=i;updateUi();setStatus(`V-0${i+1}を選択しました。スライダーで開度を調整してください。`,'ready');}});
+canvas.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key==='ArrowLeft'){selected=(selected+(e.key==='ArrowRight'?1:2))%3;updateUi();e.preventDefault();}if(e.key==='Enter'){setOpening(selected,openings[selected]>.5?0:1);e.preventDefault();}});
+window.addEventListener('pagehide',stop);make();frameID=requestAnimationFrame(draw);
+</script>
+</body>
+</html>
