@@ -1,0 +1,30 @@
+name: Hand-control and flow QA
+on:
+  push:
+    branches: [main]
+    paths:
+      - js/piping-engine.js
+      - js/gesture-control.js
+      - gesture-test.html
+      - tests/gesture.test.cjs
+      - tests/piping.test.cjs
+      - .github/workflows/gesture-qa.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node tests/piping.test.cjs
+      - run: node tests/gesture.test.cjs
+      - name: Confirm public page links
+        run: |
+          test -f gesture-test.html
+          test -f spatial-test.html
+          test -f js/gesture-control.js
+          test -f js/piping-engine.js
