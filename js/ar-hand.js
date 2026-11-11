@@ -6,9 +6,9 @@ const THREE=window.THREE, Engine=window.WallPipeEngine, Gestures=window.WallPipe
 const HandMap=window.WallPipeHandScreenMap, TrackingGate=window.WallPipeTrackingGate;
 if(!THREE||!Engine||!Gestures||!HandMap||!TrackingGate)throw new Error('Missing WallPipe or three.js dependencies');
 const $=id=>document.getElementById(id);
-const ui={stage:$('stage'),canvas:$('arCanvas'),start:$('start'),place:$('place'),reset:$('reset'),panel:$('panel'),collapse:$('collapse'),preview:$('preview'),status:$('status'),statusText:$('statusText'),info:$('info'),hand:$('handState'),pointer:$('pointer'),opening:$('opening'),openingOut:$('openingOut'),select:$('valveSelect'),toggle:$('toggle'),summary:$('flowSummary'),quick:$('quickAction'),alignment:$('handTransform'),handRetry:$('handRetry')};
+const ui={stage:$('stage'),canvas:$('arCanvas'),start:$('start'),place:$('place'),reset:$('reset'),panel:$('panel'),collapse:$('collapse'),preview:$('preview'),status:$('status'),statusText:$('statusText'),info:$('info'),hand:$('handState'),pointer:$('pointer'),opening:$('opening'),openingOut:$('openingOut'),select:$('valveSelect'),toggle:$('toggle'),summary:$('flowSummary'),quick:$('quickAction'),alignment:$('handTransform'),handRetry:$('handRetry'),rescan:$('rescan'),trackingDetails:$('trackingDetails')};
 const clamp=(v,lo,hi)=>Math.min(hi,Math.max(lo,v));
-let started=false,scene=null,camera=null,anchor=null,video=null,tracking=false,lastTracking='';
+let started=false,scene=null,camera=null,anchor=null,video=null,tracking=false,lastTracking='',lastReason='';
 let mode='water',network=null,openings=[1,1,1],selected=0,modelReady=false,landmarker=null,loadingHand=false;
 let valves=[],flowMarkers=[],gesture=Gestures.createState(),lastInference=0,lastMessage='',handInitFailed=false;
 const trackingGate=TrackingGate.createState();
@@ -164,16 +164,19 @@ function pipePipelineModule(){return {
  onUpdate:({processCpuResult})=>{
   const reality=processCpuResult?.reality;
   const status=reality?.trackingStatus||'INITIALIZING';
+  const reason=reality?.trackingReason||'UNSPECIFIED';
   const stable=TrackingGate.update(trackingGate,status);
-  if(stable!==tracking||status!==lastTracking){
-   tracking=stable;lastTracking=status;
+  if(stable!==tracking||status!==lastTracking||reason!==lastReason){
+   tracking=stable;lastTracking=status;lastReason=reason;
+   ui.trackingDetails.textContent=tracking?'追跡：安定（NORMAL）':status==='NORMAL'?'追跡：安定化中':status==='LIMITED'?`追跡：制限あり（${reason}）`:'追跡：初期化中';
+   ui.rescan.disabled=false;
    if(tracking){state('ready','空間追跡が安定しました。配管を配置できます。');ui.place.disabled=false;}
-   else{state('loading',status==='NORMAL'?'位置を安定化しています…':'追跡が不安定です。ゆっくり動かしてください。');ui.place.disabled=true;}
+   else{state('loading',status==='NORMAL'?'位置を安定化しています…':'追跡が不安定です。壁だけでなく模様のある床や家具もゆっくり映してください。');ui.place.disabled=true;}
    updateQuickAction();
   }
   if(tracking){sampleHand();animateFlow();}else{showHandPoint(null,'');Gestures.reset(gesture);}
  },
- onCameraStatusChange:({status})=>{if(status==='failed')state('error','カメラを開始できません。Safariのカメラ権限を確認してください。');},
+ onCameraStatusChange:({status})=>{if(status==='failed')state('error','カメラを開始できません。Safariのカメラ権限を確認してください。');else if(status==='hasVideo')ui.trackingDetails.textContent='カメラ映像は取得済み。SLAMの初期化を確認中。';},
  onException:(e)=>{state('error','AR処理でエラーが発生しました。');console.error(e);}
 };}
 function startAR(){
@@ -181,8 +184,16 @@ function startAR(){
  started=true;ui.start.disabled=true;ui.start.textContent='ARカメラ実行中';ui.stage.classList.add('running');updateQuickAction();
  try{
   window.XR8.XrController.configure({disableWorldTracking:false,scale:'absolute'});
-  window.XR8.addCameraPipelineModules([window.XR8.GlTextureRenderer.pipelineModule(),window.XR8.Threejs.pipelineModule(),window.XR8.XrController.pipelineModule(),pipePipelineModule()]);
-  window.XR8.run({canvas:ui.canvas});
+  const modules=[window.XR8.GlTextureRenderer.pipelineModule(),window.XR8.Threejs.pipelineModule(),window.XR8.XrController.pipelineModule()];
+  if(window.XRExtras?.FullWindowCanvas?.pipelineModule)modules.push(window.XRExtras.FullWindowCanvas.pipelineModule());
+  else ui.trackingDetails.textContent='全画面補正ライブラリを取得できません。再読み込みを試してください。';
+  modules.push(pipePipelineModule());
+  window.XR8.addCameraPipelineModules(modules);
+  window.XR8.run({canvas:ui.canvas,allowedDevices:window.XR8.XrConfig.device().ANY,cameraConfig:{direction:window.XR8.XrConfig.camera().BACK}});
+  setTimeout(()=>{if(started&&!tracking&&!modelReady){
+    ui.trackingDetails.textContent='認識が続いています。明るい場所で、模様のある床・家具をゆっくり映してください。';
+    ui.rescan.disabled=false;
+  }},12000);
   info('空間追跡を開始しています。壁の模様が見えるよう、ゆっくりカメラを動かしてください。');
  }catch(err){started=false;ui.stage.classList.remove('running');ui.start.disabled=false;ui.start.textContent='ARカメラを再試行';state('error','ARの起動に失敗しました。');updateQuickAction();console.error(err);}
 }
@@ -190,6 +201,14 @@ function checkEngine(){if(window.XR8){state('ready','ARエンジンの準備が�
 window.addEventListener('xrloaded',checkEngine);
 if(!checkEngine())setTimeout(()=>{if(!window.XR8){state('error','8th Wallエンジンを読み込めません。ネット接続と対応ブラウザを確認してください。');ui.start.disabled=true;}},14000);
 ui.start.addEventListener('click',startAR);
+ui.rescan.addEventListener('click',()=>{
+  if(!started||!window.XR8)return;
+  resetPlacement();TrackingGate.update(trackingGate,'LIMITED',10,3);tracking=false;
+  if(typeof window.XR8.XrController.recenter==='function')window.XR8.XrController.recenter();
+  else if(camera)window.XR8.XrController.updateCameraProjectionMatrix({origin:camera.position,facing:camera.quaternion});
+  ui.trackingDetails.textContent='追跡を再初期化中。模様のある場所をゆっくり映してください。';
+  state('loading','空間認識をやり直しています。');
+});
 ui.handRetry.addEventListener('click',()=>{if(video&&!loadingHand){initializeHandTracking();}else ui.hand.textContent='先にARを開始し、配管を配置してください。';});
 document.addEventListener('visibilitychange',()=>{Gestures.reset(gesture);showHandPoint(null,'');lastInference=0;if(document.hidden&&started)ui.hand.textContent='アプリは一時停止中です。';else if(!document.hidden&&started)ui.hand.textContent=handInitFailed?'手認識を再試行するか、タッチで操作してください。':landmarker?'手認識が有効です。':'配管を配置すると手認識を準備します。';});
 ui.quick.addEventListener('click',()=>{if(!started)startAR();else if(!modelReady)placeModel();});
