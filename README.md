@@ -81,3 +81,16 @@ Webアプリ: https://mill-miya.github.io/wallpipe-ar/
 - カメラ映像はブラウザ内で認識処理され、アプリ独自のサーバーに送信しません。モデルの取得先には通常のネットワークアクセスが発生します。
 
 検証: `node tests/piping.test.cjs` と `node tests/gesture.test.cjs` を実行してください。手の検出精度とSafari実機のカメラ動作は未確認です。
+
+## 空間固定AR × 手操作（試験版）
+
+[一体型ARを起動する](./ar-hand.html)（公開URL： https://mill-miya.github.io/wallpipe-ar/ar-hand.html ）
+
+- 8th Wall XR Engine Binary（SLAM）とThree.jsで配管をワールド座標に配置。配置後は画面座標へ張り付けず、端末の移動に応じて視点が変わります。
+- 同一の8th Wallカメラ映像をMediaPipe Hand Landmarkerで処理し、ピンチ＋手の回転、または手をかざす操作を判定。画面上に投影したバルブ位置を使う**2D近接判定**であり、奥行きの接触検出ではありません。
+- バルブ開度は0〜100%で既存の配管ネットワーク計算に反映。手認識が不安定な場合は画面タップ・スライダー操作を使用できます。
+- 現実の壁面は自動検出しません。カメラ前方およそ1.5mを仮想配置の基準として推定し、以後は固定したワールド座標を使用します。追跡喪失やスケール推定誤差でズレる可能性があります。
+- 端末のカメラとARエンジンに許可・対応が必要です。**iPhone実機におけるSLAM、手認識、位置合わせ、パフォーマンスは未検証**です。カメラ映像のアプリ独自バックエンド送信処理はありませんが、外部SDKと手認識モデルを読み込みます。
+- 8th Wall Engine BinaryはMIT版とは異なる**バイナリ専用ライセンス**です。ソースコードに改変・再配布されていないCDN版を使用しています。詳細は[公式ライセンス](https://github.com/8thwall/engine/blob/main/LICENSE)を参照してください。
+
+新設ファイル：`ar-hand.html`、`js/ar-hand.js`、`tests/ar-hand.test.cjs`、`.github/workflows/ar-hand-qa.yml`。以前の2DデモとQuick Lookの空間固定テストは維持しています。
