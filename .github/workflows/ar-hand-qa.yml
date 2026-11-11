@@ -3,6 +3,8 @@ on:
   push:
     branches: [main]
     paths:
+      - index.html
+      - tests/entrypoint.test.cjs
       - ar-hand.html
       - js/ar-hand.js
       - js/gesture-control.js
@@ -31,5 +33,7 @@ jobs:
         run: node tests/hand-screen-map.test.cjs
       - name: Existing piping model regression
         run: node tests/piping.test.cjs
+      - name: AR-first entrypoint and UI contract
+        run: node tests/entrypoint.test.cjs
       - name: Existing gesture state regression
         run: node tests/gesture.test.cjs
