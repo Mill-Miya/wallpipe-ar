@@ -22,6 +22,14 @@
     };
   }
   const clamp = (x,a,b) => Math.min(b,Math.max(a,x));
+  // Boolean inputs remain binary; numeric inputs (0..1) represent opening fraction.
+  const opening = value => typeof value === 'boolean' ? Number(value) : (Number.isFinite(value) ? clamp(value,0,1) : 0);
+  const effectiveResistance = (edge,states) => {
+    if(edge.valveIndex < 0) return edge.resistance;
+    const ratio=opening(states[edge.valveIndex]);
+    if(ratio<=0) return Infinity;
+    return edge.resistance*(1+6*Math.pow((1-ratio)/Math.max(.08,ratio),2));
+  };
   function makeNetwork({mode='water',surface='wall',seed=1} = {}) {
     if(!MODES.has(mode)) throw new Error('Unknown system: '+mode);
     if(!SURFACES.has(surface)) throw new Error('Unknown surface: '+surface);
@@ -132,7 +140,7 @@
     if(!network||!Array.isArray(open)||open.length!==network.valves.length) throw new Error('Invalid network / valve state');
     const {nodes,edges,source,targets}=network, n=nodes.length;
     const adj=Array.from({length:n},()=>[]);
-    for(const e of edges){e.flow=0;if(e.valveIndex>=0&&!open[e.valveIndex])continue;adj[e.a].push(e.b);adj[e.b].push(e.a);}
+    for(const e of edges){e.flow=0;if(!Number.isFinite(effectiveResistance(e,open)))continue;adj[e.a].push(e.b);adj[e.b].push(e.a);}
     const reach=new Set([source]),queue=[source];
     for(let j=0;j<queue.length;j++)for(const v of adj[queue[j]])if(!reach.has(v)){reach.add(v);queue.push(v);}
     const sinks=new Set(targets.filter(v=>reach.has(v)));
@@ -143,9 +151,9 @@
     const matrix=Array.from({length:sz},()=>Array(sz+1).fill(0));
     const potential=Array(n).fill(0);potential[source]=1;
     for(const e of edges){
-      if(e.valveIndex>=0&&!open[e.valveIndex])continue;
+      if(!Number.isFinite(effectiveResistance(e,open)))continue;
       if(!reach.has(e.a)||!reach.has(e.b))continue;
-      const g=1/Math.max(.0001,e.resistance);
+      const g=1/Math.max(.0001,effectiveResistance(e,open));
       for(const [a,b] of [[e.a,e.b],[e.b,e.a]]){
         const i=index.get(a);if(i===undefined)continue;
         matrix[i][i]+=g;
@@ -162,8 +170,8 @@
     }
     free.forEach((v,i)=>{potential[v]=matrix[i][sz];});
     for(const e of edges){
-      if(e.valveIndex>=0&&!open[e.valveIndex]||!reach.has(e.a)||!reach.has(e.b))continue;
-      e.flow=(potential[e.a]-potential[e.b])/e.resistance;
+      if(!Number.isFinite(effectiveResistance(e,open))||!reach.has(e.a)||!reach.has(e.b))continue;
+      e.flow=(potential[e.a]-potential[e.b])/effectiveResistance(e,open);
       if(Math.abs(e.flow)<1e-8)e.flow=0;
       if(e.a===source)summary.total+=e.flow;
       if(e.b===source)summary.total-=e.flow;
