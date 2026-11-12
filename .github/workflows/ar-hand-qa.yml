@@ -6,6 +6,10 @@ on:
       - index.html
       - tests/entrypoint.test.cjs
       - ar-hand.html
+      - assets/valves/**
+      - js/valve-assets.js
+      - tools/generate_valves.py
+      - tests/valve-assets.test.cjs
       - js/ar-hand.js
       - js/gesture-control.js
       - js/piping-engine.js
@@ -26,11 +30,13 @@ jobs:
         with:
           node-version: '22'
       - name: JavaScript syntax
-        run: node --check js/ar-hand.js && node --check js/gesture-control.js && node --check js/piping-engine.js && node --check js/hand-screen-map.js && node --check js/tracking-gate.js
+        run: node --check js/valve-assets.js && node --check js/ar-hand.js && node --check js/gesture-control.js && node --check js/piping-engine.js && node --check js/hand-screen-map.js && node --check js/tracking-gate.js
       - name: World tracking and gesture integration contract
         run: node tests/ar-hand.test.cjs
       - name: Video-screen calibration and SLAM stability
         run: node tests/hand-screen-map.test.cjs
+      - name: Authored valve GLB geometry contracts
+        run: node tests/valve-assets.test.cjs
       - name: Existing piping model regression
         run: node tests/piping.test.cjs
       - name: AR-first entrypoint and UI contract
