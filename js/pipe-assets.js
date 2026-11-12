@@ -10,7 +10,13 @@ function loadKit(){
   const url=new URL('../assets/pipes/pipe-kit.glb',import.meta.url).href;
   pending=loader.loadAsync(url).then(gltf=>{
    const map=new Map();
-   gltf.scene.traverse(obj=>{if(obj.isMesh)map.set(obj.name,obj.geometry);});
+   gltf.scene.traverse(obj=>{
+    if(!obj.isMesh)return;
+    // Earlier GLB assets omitted NORMAL attributes. Without correct normals,
+    // PBR shading can collapse to an almost black silhouette on mobile.
+    if(!obj.geometry.getAttribute('normal'))obj.geometry.computeVertexNormals();
+    map.set(obj.name,obj.geometry);
+   });
    for(const name of ['straight_shell','elbow_shell','tee_shell','tee_full_shell','tee_reduced_shell','cross_shell','reducer_shell','socket_shell','flange_shell','flange_fasteners','clamp_strap','mount_socket']){
     if(!map.has(name))throw new Error('Missing pipe-kit mesh '+name);
    }
@@ -28,8 +34,13 @@ const themes={
 };
 function materials(mode){
  const c=themes[mode]||themes.water;
- const make=(color,metal=.61,rough=.48)=>new THREE.MeshStandardMaterial({color,metalness:metal,roughness:rough});
- return {supply:make(c[0]),return:make(c[1]),branch:make(c[2]),load:make(c[3]),fitting:make(0xadb7b3,.55,.48),bolt:make(0xb3a68b,.60,.42),clamp:make(0x5b7178,.58,.50)};
+ // The AR camera does not supply an environment/reflection cubemap.
+ // Low-metalness satin industrial finishes remain legible under simple lights.
+ const make=(color,metal=.13,rough=.62)=>new THREE.MeshStandardMaterial({
+  color,metalness:metal,roughness:rough,side:THREE.DoubleSide,
+  emissive:new THREE.Color(color),emissiveIntensity:.10
+ });
+ return {supply:make(c[0]),return:make(c[1]),branch:make(c[2]),load:make(c[3]),fitting:make(0xbcc7c2,.10,.57),bolt:make(0xc6b38f,.16,.54),clamp:make(0x607d84,.16,.62)};
 }
 function mesh(group,geometry,material,position,scale,quaternion){
  const part=new THREE.Mesh(geometry,material);
