@@ -11,6 +11,7 @@ on:
       - js/valve-assets.js
       - js/valve-placement.js
       - tests/factory-valve-variation.test.cjs
+      - tests/system-diversity.test.cjs
       - tools/generate_valves.py
       - tests/valve-assets.test.cjs
       - js/ar-hand.js
@@ -78,6 +79,8 @@ jobs:
 
       - name: Hand mask geometry and camera composition checks
         run: node tests/hand-occlusion.test.cjs
+      - name: Water and HVAC procedural route diversity
+        run: node tests/system-diversity.test.cjs
       - name: Factory route variation and actual valve port alignment
         run: node tests/factory-valve-variation.test.cjs
       - name: Authored valve GLB geometry contracts
