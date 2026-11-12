@@ -1,0 +1,39 @@
+name: Authored pipe kit QA
+on:
+  push:
+    branches: [main]
+    paths:
+      - assets/pipes/**
+      - tools/generate_pipes.py
+      - js/pipe-layout.js
+      - js/pipe-assets.js
+      - js/ar-hand.js
+      - ar-hand.html
+      - pipe-preview.html
+      - tests/pipe-layout.test.cjs
+      - tests/pipe-kit.test.cjs
+      - .github/workflows/pipe-qa.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        run: |
+          node --check js/pipe-layout.js
+          node --check js/pipe-assets.js
+          node --check js/ar-hand.js
+      - name: Procedural layout topology tests
+        run: node tests/pipe-layout.test.cjs
+      - name: GLB mesh kit and AR integration
+        run: node tests/pipe-kit.test.cjs
+      - name: Existing fluid network regression
+        run: node tests/piping.test.cjs
+      - name: Existing hand/valve integration regression
+        run: node tests/ar-hand.test.cjs
