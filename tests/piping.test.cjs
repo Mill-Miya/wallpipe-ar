@@ -8,9 +8,9 @@ for(const mode of modes)for(const surface of surfaces){
  for(let seed=1;seed<=180;seed++){
   const a=makeNetwork({mode,surface,seed});
   assert.equal(a.nodes.length>10,true);
-  assert.equal(a.valves.length,3);
-  assert.equal(a.terminals.length,3);
-  assert.equal(a.targets.length,mode==='water'?3:1);
+  assert(mode==='plant'?a.valves.length>=2&&a.valves.length<=5:a.valves.length===3);
+  assert.equal(a.terminals.length,a.valves.length);
+  assert.equal(a.targets.length,mode==='water'?a.valves.length:1);
   assert.equal(a.sourceLabel.length>0,true);
   const geom=JSON.stringify(a.nodes.map(n=>[n.x,n.y]));variants.add(geom);
   assert.equal(geom,JSON.stringify(makeNetwork({mode,surface,seed}).nodes.map(n=>[n.x,n.y])),'seeding is deterministic');
@@ -20,8 +20,8 @@ for(const mode of modes)for(const surface of surfaces){
     assert(a.nodes[e.a].x===a.nodes[e.b].x||a.nodes[e.a].y===a.nodes[e.b].y,'axis aligned pipes');
     assert.notEqual(e.a,e.b);
   }
-  for(let flags=0;flags<8;flags++){
-    const opens=[Boolean(flags&1),Boolean(flags&2),Boolean(flags&4)];
+  for(let flags=0;flags<(1<<a.valves.length);flags++){
+    const opens=a.valves.map((_,i)=>Boolean(flags&(1<<i)));
     const o=solveFlow(a,opens);cases++;
     assert.equal(o.active,opens.filter(Boolean).length,`${mode}/${surface}/${seed}/${flags}`);
     assert.equal(o.blocked,flags===0);
