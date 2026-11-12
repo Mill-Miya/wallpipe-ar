@@ -44,3 +44,4 @@ jobs:
           node tests/hand-depth-mask.test.cjs
           node tests/hand-model-loader.test.cjs
           node tests/ar-lifecycle.test.cjs
+          node tests/flow-visuals.test.cjs
