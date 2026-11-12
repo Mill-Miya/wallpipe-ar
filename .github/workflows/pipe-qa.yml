@@ -6,6 +6,9 @@ on:
       - assets/pipes/**
       - tools/generate_pipes.py
       - js/pipe-layout.js
+      - js/valve-placement.js
+      - js/piping-engine.js
+      - tests/factory-valve-variation.test.cjs
       - js/pipe-assets.js
       - js/ar-hand.js
       - ar-hand.html
@@ -30,8 +33,11 @@ jobs:
       - name: JavaScript syntax
         run: |
           node --check js/pipe-layout.js
+          node --check js/valve-placement.js
           node --check js/pipe-assets.js
           node --check js/ar-hand.js
+      - name: Factory piping and valve assembly variety
+        run: node tests/factory-valve-variation.test.cjs
       - name: Procedural layout topology tests
         run: node tests/pipe-layout.test.cjs
       - name: GLB mesh kit and AR integration
