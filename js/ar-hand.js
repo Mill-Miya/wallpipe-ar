@@ -346,7 +346,7 @@ function pipePipelineModule(){return {
   if(video)scheduleHandSampling();
   if(modelReady&&!landmarker)initializeHandTracking();
  },
- onDetach:()=>{stopHandSampling();handGeneration++;valveRevision++;try{landmarker?.close?.();}catch{}landmarker=null;clearHandOcclusion();if(ownedVideo){ownedVideo.pause();ownedVideo.srcObject=null;ownedVideo=null;}video=null;tracking=false;TrackingGate.update(trackingGate,'LIMITED',10,1);releaseAnchorResources();resetPlacement();showHandPoint(null,'');Gestures.reset(gesture);updateQuickAction();ui.hand.textContent='ARが停止しました。再接続後に配管を配置し直してください。';},
+ onDetach:()=>{stopHandSampling();handGeneration++;valveRevision++;try{landmarker?.close?.();}catch{}landmarker=null;clearHandOcclusion();if(ownedVideo){ownedVideo.pause();ownedVideo.srcObject=null;ownedVideo=null;}video=null;tracking=false;TrackingGate.update(trackingGate,'LIMITED',10,1);releaseAnchorResources();resetPlacement();showHandPoint(null,'');Gestures.reset(gesture);fatalError=true;state('error','ARのカメラ接続が終了しました。再起動してください。');updateQuickAction();ui.hand.textContent='ARが停止しました。再起動して配管を配置し直してください。';},
  onUpdate:({processCpuResult})=>{
   const reality=processCpuResult?.reality;
   const status=reality?.trackingStatus||'INITIALIZING';
@@ -388,7 +388,7 @@ function startAR(){
   info('空間追跡を開始しています。壁の模様が見えるよう、ゆっくりカメラを動かしてください。');
  }catch(err){started=false;ui.stage.classList.remove('running');ui.start.disabled=false;ui.start.textContent='ARを起動';failAR('ARの起動に失敗しました。再起動してください。',err);}
 }
-function checkEngine(){if(window.XR8){state('ready','ARエンジンの準備ができました。');ui.start.disabled=false;updateQuickAction();return true;}return false;}
+function checkEngine(){if(window.XR8){fatalError=false;state('ready','ARエンジンの準備ができました。');ui.start.disabled=false;updateQuickAction();return true;}return false;}
 window.addEventListener('xrloaded',checkEngine);
 if(!checkEngine())setTimeout(()=>{if(!window.XR8){failAR('ARエンジンを読み込めません。通信とSafariの設定を確認し、再起動してください。');ui.start.disabled=true;}},14000);
 ui.distance.addEventListener('input',()=>{ui.distanceOut.textContent=Number(ui.distance.value).toFixed(1)+'m';});
