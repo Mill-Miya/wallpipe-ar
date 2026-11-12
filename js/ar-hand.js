@@ -3,14 +3,14 @@
  * Image-space hand/valve interaction is approximate, not 3D collision detection.
  */
 const THREE=window.THREE, Engine=window.WallPipeEngine, Gestures=window.WallPipeGesture;
-const HandMap=window.WallPipeHandScreenMap, TrackingGate=window.WallPipeTrackingGate, ValveAssets=window.WallPipeValveAssets,PipeAssets=window.WallPipePipeAssets,HandDepthMask=window.WallPipeHandDepthMask, HandLoader=window.WallPipeHandModelLoader,ValveMount=window.WallPipeValvePlacement;
-if(!THREE||!Engine||!Gestures||!HandMap||!TrackingGate||!ValveAssets||!PipeAssets||!HandDepthMask||!HandLoader||!ValveMount)throw new Error('Missing WallPipe dependencies or mesh loaders');
+const HandMap=window.WallPipeHandScreenMap, TrackingGate=window.WallPipeTrackingGate, ValveAssets=window.WallPipeValveAssets,PipeAssets=window.WallPipePipeAssets,HandDepthMask=window.WallPipeHandDepthMask, HandLoader=window.WallPipeHandModelLoader,ValveMount=window.WallPipeValvePlacement,FlowVisuals=window.WallPipeFlowVisuals;
+if(!THREE||!Engine||!Gestures||!HandMap||!TrackingGate||!ValveAssets||!PipeAssets||!HandDepthMask||!HandLoader||!ValveMount||!FlowVisuals)throw new Error('Missing WallPipe dependencies or mesh loaders');
 const $=id=>document.getElementById(id);
 const ui={stage:$('stage'),canvas:$('arCanvas'),start:$('start'),place:$('place'),reset:$('reset'),panel:$('panel'),collapse:$('collapse'),preview:$('preview'),status:$('status'),statusText:$('statusText'),info:$('info'),hand:$('handState'),pointer:$('pointer'),opening:$('opening'),openingOut:$('openingOut'),select:$('valveSelect'),toggle:$('toggle'),summary:$('flowSummary'),quick:$('quickAction'),alignment:$('handTransform'),handRetry:$('handRetry'),rescan:$('rescan'),trackingDetails:$('trackingDetails'),handHud:$('handHud'),scale:$('placeScale'),scaleOut:$('placeScaleOut'),distance:$('placeDistance'),distanceOut:$('placeDistanceOut'),height:$('placeHeight'),heightOut:$('placeHeightOut'),reticle:$('targetReticle'),occlusion:$('handOcclusion'),occlusionToggle:$('handOcclusionToggle'),presetExplore:$('presetExplore'),presetOverview:$('presetOverview'),handFailureDetails:$('handFailureDetails')};
 const clamp=(v,lo,hi)=>Math.min(hi,Math.max(lo,v));
 let started=false,scene=null,camera=null,anchor=null,video=null,ownedVideo=null,tracking=false,lastTracking='',lastReason='';
 let mode='water',network=null,openings=[1,1,1],selected=0,modelReady=false,landmarker=null,loadingHand=false;
-let valves=[],flowMarkers=[],gesture=Gestures.createState(),lastInference=0,lastMessage='',handInitFailed=false,lastVideoTime=-1,lastHandsSeen=0,valveRevision=0,occlusionFault=false,handDepthMask=null,lastMaskUpdate=0,handGeneration=0,handTimer=0,handSampleDelay=230,slowFrames=0,fatalError=false,trackingSlow=false;
+let valves=[],flowDisplay=null,gesture=Gestures.createState(),lastInference=0,lastMessage='',handInitFailed=false,lastVideoTime=-1,lastHandsSeen=0,valveRevision=0,occlusionFault=false,handDepthMask=null,lastMaskUpdate=0,handGeneration=0,handTimer=0,handSampleDelay=230,slowFrames=0,fatalError=false,trackingSlow=false;
 const trackingGate=TrackingGate.createState();
 const colorByMode={water:0x2b8ea1,air:0x368d74,plant:0xb37a38};
 function state(status,message){if(ui.status.dataset.status!==status||ui.statusText.textContent!==message){ui.status.dataset.status=status;ui.statusText.textContent=message;}}
@@ -52,6 +52,7 @@ function releaseValveInstance(root){
  for(const m of materials)m.dispose();
 }
 function releaseAnchorResources(){
+ flowDisplay?.dispose();flowDisplay=null;
  if(!anchor)return;
  const group=anchor;
  // The pipe-kit geometries are cached across sessions. Never dispose them
@@ -117,12 +118,14 @@ function refreshFlow(){
  let summary;
  try{summary=Engine.solveFlow(network,openings);}catch(e){state('error','流量計算に失敗しました。');console.error(e);return;}
  ui.summary.textContent=`通水系統：${summary.active} / ${network.terminals.length}（相対流量 ${summary.total.toFixed(2)}）`+(network.palette?' ／ 配色：'+network.palette:'');
+ flowDisplay?.sync(summary);
  for(const v of valves){const op=openings[v.index],shut=1-op;if(v.handle){v.handle.rotation.z=(v.type==='gate'||v.type==='control')?shut*Math.PI*3:shut*Math.PI*.5;if(v.type==='gate'||v.type==='control')v.handle.position.z=v.handle.userData.pivotHeight+op*.018;}if(v.disc)v.disc.rotation.z=op*Math.PI*.5;}
 }
 function setOpening(index,value){if(!Number.isInteger(index)||index<0||index>=openings.length||!Number.isFinite(value))return;openings[index]=clamp(Math.round(value*100)/100,0,1);refreshFlow();if(index===selected)syncControls();}
 function addRod(parent,a,b,r,mat){const d=new THREE.Vector3().subVectors(b,a),len=d.length();if(len<.0001)return null;const obj=new THREE.Mesh(new THREE.CylinderGeometry(r,r,len,12),mat);obj.position.copy(a).add(b).multiplyScalar(.5);obj.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());parent.add(obj);return obj;}
 function point(n,z=.06){return new THREE.Vector3(n.x*.00265,-n.y*.00265,z);}
 function buildNetwork(){
+ flowDisplay?.dispose();flowDisplay=null;
  const revision=++valveRevision;
  delete ui.preview.dataset.alert;
  const seed=(Math.random()*4294967295)>>>0;
@@ -144,13 +147,12 @@ function buildNetwork(){
  for(const m of anchor.userData.materials||[])m.dispose();
  for(const texture of anchor.userData.textures||[])texture.dispose();
  anchor.userData.materials=[];anchor.userData.textures=[];
- valves=[];flowMarkers=[];
+ valves=[];
  const ownedMaterials=[],labelTextures=[];
  const material=(color,metalness=.4,opacity=1)=>{const m=new THREE.MeshStandardMaterial({color,metalness,roughness:.51,transparent:opacity<1,opacity,depthWrite:opacity===1});ownedMaterials.push(m);return m;};
  const tint={water:[0x7b9ca6,0x6d8493],air:[0x829f98,0x69828d],plant:[0x998b7b,0x7b828a]}[mode];
  const pipeM=material(tint[0],.55),returnM=material(tint[1],.48),loadM=material(0xb48f65,.43);
  const jointM=material(0xb0bcb9,.48),valveM=material(0x869c9f,.53),leverM=material(0xd3a157,.44),wheelM=material(0x485961,.43);
- const waterM=material(colorByMode[mode],.06);
  function at(parent,geom,mat,pos){const o=new THREE.Mesh(geom,mat);if(pos)o.position.copy(pos);parent.add(o);return o;}
  function collar(parent,p,r,axis,ratio=1.2){const c=at(parent,new THREE.CylinderGeometry(r*ratio,r*ratio,.026,14),jointM,p);c.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),axis);return c;}
  function addValveLabel(parent,index){
@@ -165,7 +167,7 @@ function buildNetwork(){
  const wallPanel=at(anchor,new THREE.PlaneGeometry(1.88,1.24),material(0x92a9a2,0,.075));
  wallPanel.position.z=-.11;
  const pipeFallback=new THREE.Group();pipeFallback.name='legacy-pipe-loading-fallback';anchor.add(pipeFallback);
- const jointRadius=new Map(),degrees=new Map(),pulseGeo=new THREE.SphereGeometry(.020,8,6);
+ const jointRadius=new Map(),degrees=new Map();
  for(const e of network.edges){
   const r=clamp(e.diameter*.00172,.014,.052);
   for(const id of [e.a,e.b]){jointRadius.set(id,Math.max(jointRadius.get(id)||0,r));degrees.set(id,(degrees.get(id)||0)+1);}
@@ -174,8 +176,6 @@ function buildNetwork(){
   if(e.valveIndex<0)addRod(pipeFallback,a,b,r,m);
   // A pipe sleeve shows the transition between a header and a smaller branch.
   if(e.kind==='supply'&&r>.032)collar(pipeFallback,a.clone().lerp(b,.83),r,b.clone().sub(a).normalize(),1.14);
-  const pulse=at(anchor,pulseGeo,waterM,a.clone());
-  pulse.visible=false;flowMarkers.push({mesh:pulse,edge:e,a,b});
  }
  const junctionShape=new THREE.SphereGeometry(1,12,9);
  for(const [id,r] of jointRadius){
@@ -234,6 +234,14 @@ function buildNetwork(){
  });
  anchor.userData.materials=ownedMaterials;
  anchor.userData.textures=labelTextures;
+ try{
+  // All outlets are separate objects. Never reuse one jet for the last valve.
+  const baseline=Engine.solveFlow(network,network.valves.map(()=>1)).terminalFlows;
+  flowDisplay=FlowVisuals.create({THREE,network,parent:anchor,point,mode,baseColor:colorByMode[mode],baseline});
+ }catch(error){
+  console.error('Flow visualization unavailable',error);
+  info('流量計算は利用できますが、水流の描画を準備できませんでした。');
+ }
  refreshFlow();syncControls();
  ui.preview.textContent='配管は仮想の設備です。配置後はその位置に留まり、端末を動かすと横から観察できます。';
 }
@@ -344,7 +352,7 @@ function sampleHand(){
   if(event.kind==='tracking'||event.kind==='pinch-outside')handStatus('ready',event.kind==='tracking'?'手認識：手を検出。バルブに近づけてください。':'手認識：指を検出。バルブの近くでピンチしてください。');
  }catch(err){console.error('Hand frame processing stopped',err);try{landmarker?.close?.();}catch{}landmarker=null;handInitFailed=true;ui.handRetry.style.display='block';ui.hand.textContent='手認識が停止しました。タップ操作を使用してください。';handStatus('error','手認識：処理エラー。操作パネルから再試行');clearHandOcclusion();showHandPoint(null,'');}
 }
-function animateFlow(){if(!modelReady||!network)return;const t=performance.now()*.00030;for(const e of flowMarkers){const f=e.edge.flow;e.mesh.visible=Math.abs(f)>.004;if(!e.mesh.visible)continue;const p=(t*Math.min(2,Math.max(.35,Math.abs(f)*5))+e.edge.id*.17)%1;e.mesh.position.copy(e.a).lerp(e.b,f>=0?p:1-p);}}
+function animateFlow(){if(modelReady&&network)flowDisplay?.animate(performance.now());}
 function pipePipelineModule(){return {
  name:'wallpipe-world-hand',
  onStart:()=>{
@@ -429,7 +437,7 @@ function selectViewPreset(kind){
  if(modelReady){info('観察方法を変更する場合は、一度「配置を解除」してください。');return;}
  const nearby=kind==='explore';
  ui.distance.value=nearby?'1.3':'2.2';
- ui.scale.value=nearby?'1.65':'0.95';
+ ui.scale.value=nearby?'1.85':'0.95';
  ui.distanceOut.textContent=Number(ui.distance.value).toFixed(1)+'m';
  ui.scaleOut.textContent=Math.round(Number(ui.scale.value)*100)+'%';
  ui.presetExplore.setAttribute('aria-pressed',String(nearby));
