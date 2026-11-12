@@ -9,7 +9,7 @@ for(const mode of ['water','air','plant']){
   const snapshot=JSON.stringify(network);
   const plan=Layout.plan(network);
   assert.equal(JSON.stringify(network),snapshot,'Renderer plan must not mutate the flow graph');
-  assert.equal(plan.spans.length,network.edges.filter(e=>e.valveIndex<0).length);
+  assert.equal(plan.spans.length,network.edges.filter(e=>e.valveIndex<0&&Math.hypot(network.nodes[e.a].x-network.nodes[e.b].x,network.nodes[e.a].y-network.nodes[e.b].y)>1e-7).length);
   assert(plan.fittings.length>0);
   for(const span of plan.spans){
    assert(span.length>0&&Number.isFinite(span.length),mode+' '+seed+' '+span.edgeId);
