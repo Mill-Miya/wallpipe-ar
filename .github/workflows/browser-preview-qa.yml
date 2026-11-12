@@ -15,6 +15,9 @@ on:
       - 'tests/browser-depth-mask.test.mjs'
       - 'tests/depth-mask-fixture.html'
       - 'js/hand-depth-mask.js'
+      - 'js/flow-visuals.js'
+      - 'tests/browser-flow-bars.test.mjs'
+      - 'tests/flow-bars-fixture.html'
       - '.github/workflows/browser-preview-qa.yml'
   workflow_dispatch:
 permissions:
@@ -39,6 +42,7 @@ jobs:
           sleep 2
           node tests/browser-preview.test.mjs
           node tests/browser-depth-mask.test.mjs
+          node tests/browser-flow-bars.test.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -46,4 +50,5 @@ jobs:
           path: |
             /tmp/wallpipe-factory-browser.png
             /tmp/wallpipe-depth-mask-webgl.png
+            /tmp/wallpipe-three-water-jets.png
           if-no-files-found: ignore
