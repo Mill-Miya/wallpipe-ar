@@ -32,8 +32,15 @@ assert(page.includes('width:100vw!important')&&page.includes('height:100dvh!impo
  // and visible diagnostics are required before claiming AR hand usability.
 failIfMissing(['id="handHud"','id="placeScale"','id="placeDistance"','value="1.3"','value="1.40"'],page,'AR viewport and hand visibility');
 failIfMissing(['handStatus','ownedVideo.srcObject=sourceStream','anchor.scale.setScalar(Number(ui.scale.value))','ui.scale.disabled=false','lastInference=now'],app,'Hand feed and placement scale');
-assert(page.includes('v0.9.4'),'AR exploratory layout release marker must match');
+assert(page.includes('v0.9.5'),'AR exploratory layout release marker must match');
 failIfMissing(['id="handOcclusion"','id="handOcclusionToggle"','js/hand-occlusion.js'],page,'Hand foreground overlay UI');
+assert(page.includes('#stage.ar-placed~#preview'),'Placed AR should hide intrusive instruction');
+assert(page.includes('[data-alert="error"]'),'Asset error must remain visible after placement');
+assert(app.includes("ui.stage.classList.add('ar-placed')"),'Placed class is set on anchor placement');
+assert(app.includes("ui.stage.classList.remove('ar-placed')"),'Placed class clears on reset');
+assert(app.includes('releaseAnchorResources()'),'Session should free owned geometry on camera detach');
+assert(app.includes('failAR(')&&app.includes('window.location.reload()'),'Camera failures need a usable restart path');
+
 failIfMissing(['js/hand-model-loader.js','id="presetExplore"','id="presetOverview"','id="handFailureDetails"'],page,'Hand loader and AR exploration controls');
 failIfMissing(['HandLoader.load','preferGPU:false','ui.handFailureDetails.textContent','selectViewPreset','anchor.scale.setScalar(Number(ui.scale.value))'],app,'Pinned hand SDK and spatial exploration integration');
 failIfMissing(['HandOcclusion.render','paintHandOcclusion(points)','clearHandOcclusion()'],app,'Hand foreground integration');
