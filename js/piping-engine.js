@@ -128,6 +128,8 @@
       // Each factory regeneration changes the number and arrangement of
       // isolated process trains, not just the exact positions of old lines.
       const pickIndex=n=>Math.floor(random()*n);
+      // Warm up xorshift: the first output for small sequential seeds is biased.
+      random();random();random();
       const lineCount=2+pickIndex(4);
       const rowTemplates={
         2:[-129,129],3:[-146,0,146],
