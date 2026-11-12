@@ -22,10 +22,14 @@ failIfMissing(['XRExtras.FullWindowCanvas.pipelineModule','ui.rescan.addEventLis
 // The new valve silhouettes live in authored, independently generated GLB assets.
 const assetLoader=fs.readFileSync(path.join(root,'js/valve-assets.js'),'utf8');
 const generator=fs.readFileSync(path.join(root,'tools/generate_valves.py'),'utf8');
-failIfMissing(['ValveAssets.loadValveModel','attachAuthoredValve','valveRevision','mount.scale.setScalar','v.handle.userData.pivotHeight'],app,'Authored valve integration');
+failIfMissing(['ValveAssets.loadValveModel','attachAuthoredValve','valveRevision','mount.scale.set(fit.radialScale,fit.axialScale,fit.radialScale)','v.handle.userData.pivotHeight'],app,'Authored valve integration');
 failIfMissing(['GLTFLoader','actuator_','disc_','../assets/valves/','clone()'],assetLoader,'Detailed mesh loader');
 failIfMissing(['revolution(','elliptical_loft(','handwheel(','flange(','for kind in'],generator,'Custom mesh generation');
 assert(!app.includes('function makeValve(i){'),'Do not regress to primitive-only valve bodies');
+assert(page.includes('js/valve-placement.js'),'AR must load the common factory valve mounting contract');
+assert(app.includes('ValveMount.mounting(network,i)'),'AR must adapt valve dimension and type to its route');
+assert(!app.includes("['gate','ball','butterfly'][i%3]"),'Factory valve assignment must not be fixed by lane');
+
 assert(page.includes('width:100vw!important')&&page.includes('height:100dvh!important'),'Fullscreen canvas layout must remain enabled');
 
 // Regression: iPhone landscape/portrait image alignment, smaller initial model,
