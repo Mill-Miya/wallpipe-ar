@@ -36,6 +36,13 @@
     if(nearby>=0){state.startValue=openings[nearby];return{kind:'grab',index:nearby,point:tip};}
     return{kind:'pinch-outside',point:tip};
    }
+   // A pinch may begin away from a valve and move onto it while held.
+   // Acquire at entry rather than requiring the user to release and retry.
+   if(state.held<0&&nearby>=0){
+    state.held=nearby;state.startValue=openings[nearby];
+    state.previousAngle=rotation;state.accum=0;
+    return{kind:'grab',index:nearby,point:tip};
+   }
    if(state.held>=0){
     state.accum+=deltaAngle(state.previousAngle,rotation);state.previousAngle=rotation;
     const value=clamp(state.startValue+state.accum/(Math.PI/2),0,1);
