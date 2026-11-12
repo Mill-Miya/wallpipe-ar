@@ -47,6 +47,31 @@ function releaseValveInstance(root){
  for(const g of geometries)g.dispose();
  for(const m of materials)m.dispose();
 }
+function releaseAnchorResources(){
+ if(!anchor)return;
+ const group=anchor;
+ // The pipe-kit geometries are cached across sessions. Never dispose them
+ // when destroying an instance, only the per-instance materials.
+ const pipe=group.userData.pipeAssetRoot;
+ if(pipe){group.remove(pipe);for(const m of group.userData.pipeAssetMaterials||[])m.dispose();}
+ for(const valveRoot of group.userData.valveAssetRoots||[]){
+  valveRoot.parent?.remove(valveRoot);
+  releaseValveInstance(valveRoot);
+ }
+ const geoms=new Set(),mats=new Set();
+ group.traverse(obj=>{
+  if(!obj.isMesh&&!obj.isSprite)return;
+  if(obj.geometry)geoms.add(obj.geometry);
+  for(const material of(Array.isArray(obj.material)?obj.material:[obj.material]))
+   if(material)mats.add(material);
+ });
+ for(const g of geoms)g.dispose();
+ for(const m of group.userData.materials||[])mats.add(m);
+ for(const m of mats)m.dispose();
+ for(const t of group.userData.textures||[])t.dispose();
+ group.parent?.remove(group);
+ anchor=null;
+}
 function stopHandSampling(){
  if(handTimer){clearTimeout(handTimer);handTimer=0;}
 }
@@ -300,6 +325,7 @@ function animateFlow(){if(!modelReady||!network)return;const t=performance.now()
 function pipePipelineModule(){return {
  name:'wallpipe-world-hand',
  onStart:()=>{
+  releaseAnchorResources();
   modelReady=false;tracking=false;fatalError=false;
   trackingGate.good=0;trackingGate.bad=0;trackingGate.stable=false;
   const xrscene=window.XR8.Threejs.xrScene();scene=xrscene.scene;camera=xrscene.camera;
@@ -319,7 +345,7 @@ function pipePipelineModule(){return {
   if(video)scheduleHandSampling();
   if(modelReady&&!landmarker)initializeHandTracking();
  },
- onDetach:()=>{stopHandSampling();handGeneration++;valveRevision++;try{landmarker?.close?.();}catch{}landmarker=null;clearHandOcclusion();if(ownedVideo){ownedVideo.pause();ownedVideo.srcObject=null;ownedVideo=null;}video=null;tracking=false;TrackingGate.update(trackingGate,'LIMITED',10,1);resetPlacement();showHandPoint(null,'');Gestures.reset(gesture);updateQuickAction();ui.hand.textContent='ARが停止しました。再接続後に配管を配置し直してください。';},
+ onDetach:()=>{stopHandSampling();handGeneration++;valveRevision++;try{landmarker?.close?.();}catch{}landmarker=null;clearHandOcclusion();if(ownedVideo){ownedVideo.pause();ownedVideo.srcObject=null;ownedVideo=null;}video=null;tracking=false;TrackingGate.update(trackingGate,'LIMITED',10,1);releaseAnchorResources();resetPlacement();showHandPoint(null,'');Gestures.reset(gesture);updateQuickAction();ui.hand.textContent='ARが停止しました。再接続後に配管を配置し直してください。';},
  onUpdate:({processCpuResult})=>{
   const reality=processCpuResult?.reality;
   const status=reality?.trackingStatus||'INITIALIZING';
