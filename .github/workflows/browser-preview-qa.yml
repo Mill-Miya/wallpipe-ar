@@ -12,6 +12,9 @@ on:
       - 'assets/pipes/**'
       - 'assets/valves/**'
       - 'tests/browser-preview.test.mjs'
+      - 'tests/browser-depth-mask.test.mjs'
+      - 'tests/depth-mask-fixture.html'
+      - 'js/hand-depth-mask.js'
       - '.github/workflows/browser-preview-qa.yml'
   workflow_dispatch:
 permissions:
@@ -35,9 +38,12 @@ jobs:
           node tools/serve-preview.mjs > /tmp/wallpipe-server.log 2>&1 &
           sleep 2
           node tests/browser-preview.test.mjs
+          node tests/browser-depth-mask.test.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: factory-chromium-screenshot
-          path: /tmp/wallpipe-factory-browser.png
+          path: |
+            /tmp/wallpipe-factory-browser.png
+            /tmp/wallpipe-depth-mask-webgl.png
           if-no-files-found: ignore
