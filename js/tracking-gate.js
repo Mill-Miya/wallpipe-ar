@@ -6,6 +6,7 @@
 })(typeof window!=='undefined'?window:globalThis,function(){
  'use strict';
  function createState(){return{good:0,bad:0,stable:false};}
+ function reset(state){Object.assign(state,createState());return state;}
  function update(state,status,goodFrames=10,badFrames=3){
   if(status==='NORMAL'){
    state.good=Math.min(goodFrames,state.good+1);
@@ -18,5 +19,5 @@
   }
   return state.stable;
  }
- return Object.freeze({createState,update});
+ return Object.freeze({createState,reset,update});
 });

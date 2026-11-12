@@ -20,4 +20,14 @@ assert.equal(T.update(gate,'NORMAL'),true);
 assert.equal(T.update(gate,'LIMITED'),true);assert.equal(T.update(gate,'LIMITED'),true);
 assert.equal(T.update(gate,'LIMITED'),false);
 for(let i=0;i<10;i++)T.update(gate,'NORMAL');assert.equal(gate.stable,true);
+// Rescan is an explicit restart, not a one-frame LIMITED event. The first
+// NORMAL frame after rescan must not bypass the ten-frame stability gate.
+assert.equal(T.reset(gate),gate);
+assert.deepEqual(gate,{good:0,bad:0,stable:false});
+assert.equal(T.update(gate,'NORMAL'),false);
+for(let i=0;i<9;i++)T.update(gate,'NORMAL');
+assert.equal(gate.stable,true);
+const fs=require('node:fs'),path=require('node:path');
+const app=fs.readFileSync(path.join(__dirname,'../js/ar-hand.js'),'utf8');
+assert.match(app,/ui\.rescan\.addEventListener\('click',[\s\S]*?TrackingGate\.reset\(trackingGate\)/,'AR rescan must reset the hysteresis state');
 console.log('PASS: crop, 4 alignment corrections, invalid inputs and SLAM tracking hysteresis');

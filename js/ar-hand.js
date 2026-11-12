@@ -431,7 +431,7 @@ ui.start.addEventListener('click',()=>{if(fatalError)window.location.reload();el
 ui.rescan.addEventListener('click',()=>{
   if(!started||!window.XR8)return;
   trackingSlow=false;updateQuickAction();
-  resetPlacement();TrackingGate.update(trackingGate,'LIMITED',10,3);tracking=false;
+  resetPlacement();TrackingGate.reset(trackingGate);tracking=false;ui.place.disabled=true;updateQuickAction();
   if(typeof window.XR8.XrController.recenter==='function')window.XR8.XrController.recenter();
   else if(camera)window.XR8.XrController.updateCameraProjectionMatrix({origin:camera.position,facing:camera.quaternion});
   ui.trackingDetails.textContent='追跡を再初期化中。模様のある場所をゆっくり映してください。';
