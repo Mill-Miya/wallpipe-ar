@@ -135,7 +135,7 @@
       // Every regeneration shuffles these three valve types and at least
       // two routed process configurations. All paths stay independently isolated.
       const valveTypes=shuffle(['gate','ball','butterfly']);
-      const variants=shuffle([0,1,2]).map(v=>v===0&&random()<.50?3:v);
+      const variants=shuffle([0,1,2]).map(v=>v===0&&random()<.40?3:(v===1&&random()<.30?3:v));
       const routed=(from,to,kind,diameter)=>{
         const a=nodes[from],b=nodes[to];
         if(a.y===b.y||a.x===b.x){edge(from,to,kind,diameter);return;}
