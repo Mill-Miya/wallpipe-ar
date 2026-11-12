@@ -41,7 +41,7 @@ const html=fs.readFileSync('ar-hand.html','utf8');
 const app=fs.readFileSync('js/ar-hand.js','utf8');
 assert(html.includes('id="handOcclusion"')&&html.includes('id="handOcclusionToggle"'));
 assert(html.includes('js/hand-occlusion.js'));
-assert(html.includes('value="0.95"')&&html.includes('max="1.30"'));
+assert(html.includes('value="1.40"')&&html.includes('max="1.85"'));
 assert(app.includes('HandOcclusion.render')&&app.includes('clearHandOcclusion()'));
 assert(app.includes('paintHandOcclusion(points)'));
 assert(!app.includes('navigator.mediaDevices.getUserMedia'),'Hand occlusion must reuse the XR camera');
