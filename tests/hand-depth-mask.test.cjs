@@ -67,7 +67,7 @@ const html=fs.readFileSync('ar-hand.html','utf8'),app=fs.readFileSync('js/ar-han
 assert(html.includes('js/hand-depth-mask.js'));
 assert(!html.includes('<script src="./js/hand-occlusion.js"></script>'));
 assert(html.includes('#handOcclusion{display:none!important'));
-assert(html.includes('value="1.65"')&&html.includes('max="2.30"'));
+assert(html.includes('value="1.85"')&&html.includes('max="2.30"'));
 assert(app.includes('HandDepthMask.create({THREE,camera,canvas:ui.occlusion})'));
 assert(app.includes('handDepthMask.update(points,ui.canvas.getBoundingClientRect())'));
 assert(app.includes('disposeHandOcclusion()')&&app.includes('lastMaskUpdate'));
