@@ -106,33 +106,71 @@
       marks.push({label:'往き管',nodeId:source,kind:'header'});
       marks.push({label:'戻り管',nodeId:target,kind:'header'});
     } else {
-      // Parallel process trains with isolating valves and common inlet/outlet headers.
-      scheme='入口・出口マニホールドと3設備ライン';
-      const ys=[-141,0,142].map(y=>y+offset(13));
-      const inletX=-251+offset(7),outletX=246+offset(7);
-      source=node(-309,0);sourceLabel='入口';
-      const target=node(309,0);targetLabel='出口';targets=[target];
+      // Parallel process trains. Randomness changes actual routed geometry,
+      // not merely the labels or the position of an identical schematic.
+      scheme='工場配管：複数の設備ラインと操作弁';
+      const shuffle=values=>{
+        const a=[...values];
+        for(let i=a.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+        return a;
+      };
+      const ys=[-149,0,149].map(y=>y+offset(16));
+      const inletX=-256+offset(13),outletX=258+offset(13);
+      source=node(-315,0);sourceLabel='原料・供給';
+      const target=node(315,0);targetLabel='設備出口';targets=[target];
       const inletMid=node(inletX,0),outletMid=node(outletX,0);
       edge(source,inletMid,'supply',26);edge(outletMid,target,'return',26);
       const inputByRow=[],outputByRow=[];
       for(let i=0;i<3;i++){inputByRow.push(node(inletX,ys[i]));outputByRow.push(node(outletX,ys[i]));}
-      // A middle node feeds the upper/lower manifold legs without overlapping pipes.
-      edge(inletMid,inputByRow[1],'supply',26);
-      edge(inputByRow[1],inputByRow[0],'supply',21);
-      edge(inputByRow[1],inputByRow[2],'supply',21);
-      edge(outputByRow[1],outletMid,'return',26);
-      edge(outputByRow[0],outputByRow[1],'return',21);
-      edge(outputByRow[2],outputByRow[1],'return',21);
+      for(const [left,right,kind,diam] of [
+        [inletMid,inputByRow[1],'supply',26],
+        [inputByRow[1],inputByRow[0],'supply',21],
+        [inputByRow[1],inputByRow[2],'supply',21],
+        [outputByRow[1],outletMid,'return',26],
+        [outputByRow[0],outputByRow[1],'return',21],
+        [outputByRow[2],outputByRow[1],'return',21]
+      ]){if(nodes[left].x!==nodes[right].x||nodes[left].y!==nodes[right].y)edge(left,right,kind,diam);}
+      // Every regeneration shuffles these three valve types and at least
+      // two routed process configurations. All paths stay independently isolated.
+      const valveTypes=shuffle(['gate','ball','butterfly']);
+      const variants=shuffle([0,1,2]).map(v=>v===0&&random()<.50?3:v);
+      const routed=(from,to,kind,diameter)=>{
+        const a=nodes[from],b=nodes[to];
+        if(a.y===b.y||a.x===b.x){edge(from,to,kind,diameter);return;}
+        // Two additional bends allow an offset process unit without a diagonal.
+        const turnX=Math.round(a.x+(b.x-a.x)*between(.28,.68));
+        const c=node(turnX,a.y),d=node(turnX,b.y);
+        edge(from,c,kind,diameter);
+        edge(c,d,kind,diameter);
+        edge(d,to,kind,diameter);
+      };
       for(let i=0;i<3;i++){
-        const y=ys[i],a=node(-193+offset(8),y),b=node(-146+offset(7),y);
-        const loadA=node(15+offset(9),y),loadB=node(89+offset(9),y);
-        edge(inputByRow[i],a,'branch',17);
-        valve(a,b,'遮断弁','設備ライン '+(i+1)+'・操作可能位置',17);
-        edge(b,loadA,'branch',17);
-        const activeEdge=edge(loadA,loadB,'load',17,{load:true});
-        edge(loadB,outputByRow[i],'branch',17);
+        const base=ys[i],variant=variants[i],type=valveTypes[i];
+        const sign=(i===0?1:i===2?-1:choose([-1,1]));
+        const valveY=base+(variant===1||variant===3?sign*Math.round(between(24,43)):0);
+        const processY=base+(variant===2||variant===3?-sign*Math.round(between(24,49)):0);
+        // Use a short wafer body for butterfly valves, and longer flanged
+        // face-to-face dimensions for ball and gate valves.
+        const valveX=Math.round(between(-209,-173));
+        const valveLength=type==='butterfly'?Math.round(between(34,42)):Math.round(between(64,78));
+        const a=node(valveX,valveY),b=node(valveX+valveLength,valveY);
+        const processX=Math.round(between(12,48));
+        const processEndX=Math.round(between(102,143));
+        const loadA=node(processX,processY),loadB=node(processEndX,processY);
+        const branchDia=choose([14,16,18,20]);
+        routed(inputByRow[i],a,'branch',branchDia);
+        valve(a,b,'遮断弁','設備ライン '+(i+1)+'・操作可能位置',branchDia);
+        valves[i].type=type;
+        valves[i].layout=variant;
+        routed(b,loadA,'branch',branchDia);
+        const activeEdge=edge(loadA,loadB,'load',branchDia,{load:true});
+        routed(loadB,outputByRow[i],'branch',branchDia);
         terminals.push({label:'設備 '+String.fromCharCode(65+i),nodeId:loadA,kind:'process',valveIndex:i,activeEdge});
       }
+      marks.push({label:'供給マニホールド',nodeId:inletMid,kind:'header'});
+      marks.push({label:'戻りマニホールド',nodeId:outletMid,kind:'header'});
+      scheme+='（'+variants.map(v=>['直結','弁オフセット','設備オフセット','複合オフセット'][v]).join('／')+'）';
+
     }
     return {nodes,edges,valves,terminals,source,targets,sourceLabel,targetLabel,scheme,mode,surface,seed};
   }
