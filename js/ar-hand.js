@@ -104,6 +104,7 @@ function addRod(parent,a,b,r,mat){const d=new THREE.Vector3().subVectors(b,a),le
 function point(n,z=.06){return new THREE.Vector3(n.x*.00265,-n.y*.00265,z);}
 function buildNetwork(){
  const revision=++valveRevision;
+ delete ui.preview.dataset.alert;
  const seed=(Math.random()*4294967295)>>>0;
  network=Engine.makeNetwork({mode,surface:'wall',seed});openings=[1,1,1];Gestures.reset(gesture);selected=0;
  if(!anchor){syncControls();return;}
@@ -190,7 +191,7 @@ function buildNetwork(){
   }).catch(error=>{
    if(revision!==valveRevision)return;
    console.error('Valve mesh failed',type,error);
-   ui.preview.textContent='バルブの3Dモデルを読み込めませんでした。通信を確認して再生成してください。';
+   ui.preview.dataset.alert='error';ui.preview.textContent='バルブの3Dモデルを読み込めませんでした。通信を確認して再生成してください。';
   });
  }
  for(let i=0;i<network.valves.length;i++)attachAuthoredValve(i);
@@ -214,7 +215,7 @@ function buildNetwork(){
  refreshFlow();syncControls();
  ui.preview.textContent='配管は仮想の設備です。配置後はその位置に留まり、端末を動かすと横から観察できます。';
 }
-function resetPlacement(){clearHandOcclusion();if(anchor){anchor.visible=false;}modelReady=false;ui.reticle.classList.remove('is-placed');ui.distance.disabled=false;ui.height.disabled=false;ui.scale.disabled=false;ui.presetExplore.disabled=false;ui.presetOverview.disabled=false;ui.reset.disabled=true;ui.place.disabled=!tracking;Gestures.reset(gesture);showHandPoint(null,'');updateQuickAction();info('配置を解除しました。カメラで壁を映し、再配置してください。');}
+function resetPlacement(){clearHandOcclusion();ui.stage.classList.remove('ar-placed');if(anchor){anchor.visible=false;}modelReady=false;ui.reticle.classList.remove('is-placed');ui.distance.disabled=false;ui.height.disabled=false;ui.scale.disabled=false;ui.presetExplore.disabled=false;ui.presetOverview.disabled=false;ui.reset.disabled=true;ui.place.disabled=!tracking;Gestures.reset(gesture);showHandPoint(null,'');updateQuickAction();info('配置を解除しました。カメラで壁を映し、再配置してください。');}
 function placeModel(){
  if(!tracking||!camera||!anchor){info('追跡が安定してから配置してください。');return;}
  // Tracking comes from XR8; the approximate wall target is 1.5m along the view ray.
@@ -229,7 +230,7 @@ function placeModel(){
  anchor.rotation.set(0,Math.atan2(-flat.x,-flat.z),0);
  anchor.visible=true;anchor.updateMatrixWorld(true);
  ui.reticle.classList.add('is-placed');ui.distance.disabled=true;ui.height.disabled=true;ui.scale.disabled=false;ui.presetExplore.disabled=true;ui.presetOverview.disabled=true;
- modelReady=true;ui.reset.disabled=false;ui.place.disabled=false;
+ modelReady=true;ui.stage.classList.add('ar-placed');ui.reset.disabled=false;ui.place.disabled=false;
  Gestures.reset(gesture);updateQuickAction();
  ui.hand.textContent=landmarker?'手認識が有効です。バルブの前でピンチしてください。':'手認識を準備しています…';
  handStatus(landmarker?'ready':'idle',landmarker?'手認識：準備完了。バルブへ手を向けてください。':'手認識：モデルを読み込み中');
