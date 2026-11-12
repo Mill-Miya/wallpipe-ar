@@ -38,7 +38,16 @@ function buildNetwork(){
  const seed=(Math.random()*4294967295)>>>0;
  network=Engine.makeNetwork({mode,surface:'wall',seed});openings=[1,1,1];Gestures.reset(gesture);selected=0;
  if(!anchor){syncControls();return;}
- const disposed=new Set();for(const child of [...anchor.children]){child.traverse(obj=>{if(obj.geometry&&!disposed.has(obj.geometry)){disposed.add(obj.geometry);obj.geometry.dispose();}});anchor.remove(child);}
+ const disposed=new Set();
+ for(const root of anchor.userData.valveAssetRoots||[])root.traverse(obj=>{
+  if(!obj.isMesh)return;
+  for(const mat of (Array.isArray(obj.material)?obj.material:[obj.material]))mat?.dispose();
+ });
+ anchor.userData.valveAssetRoots=[];
+ for(const child of [...anchor.children]){
+  child.traverse(obj=>{if(obj.geometry&&!disposed.has(obj.geometry)){disposed.add(obj.geometry);obj.geometry.dispose();}});
+  anchor.remove(child);
+ }
  for(const m of anchor.userData.materials||[])m.dispose();
  for(const texture of anchor.userData.textures||[])texture.dispose();
  anchor.userData.materials=[];anchor.userData.textures=[];
@@ -102,6 +111,7 @@ function buildNetwork(){
    // Never attach a model from a previous regeneration of this AR scene.
    if(revision!==valveRevision||!anchor||!mount.parent)return;
    mount.add(model.root);
+   (anchor.userData.valveAssetRoots ||= []).push(model.root);
    entry.handle=model.handle;entry.disc=model.disc;
    refreshFlow(); // Apply current opening even if the asset loaded after a gesture.
   }).catch(error=>{
