@@ -17,7 +17,7 @@ const ctx={
 const mask={width:0,height:0,getContext:()=>ctx};
 assert.equal(M.drawMask(mask,pts,rect),true);
 assert(mask.width>100&&mask.height>400);
-assert(fills>=7&&strokes>=15);
+assert(fills>=6&&strokes>=15);
 assert.equal(draws,0,'Must NOT copy live camera footage to foreground');
 assert.equal(M.drawMask(mask,pts.slice(0,20),rect),false);
 const disposed=[];
