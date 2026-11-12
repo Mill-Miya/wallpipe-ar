@@ -7,6 +7,7 @@ on:
       - tests/entrypoint.test.cjs
       - ar-hand.html
       - assets/valves/**
+      - valve-preview.html
       - js/valve-assets.js
       - tools/generate_valves.py
       - tests/valve-assets.test.cjs
