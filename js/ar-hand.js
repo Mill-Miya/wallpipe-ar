@@ -3,8 +3,8 @@
  * Image-space hand/valve interaction is approximate, not 3D collision detection.
  */
 const THREE=window.THREE, Engine=window.WallPipeEngine, Gestures=window.WallPipeGesture;
-const HandMap=window.WallPipeHandScreenMap, TrackingGate=window.WallPipeTrackingGate, ValveAssets=window.WallPipeValveAssets;
-if(!THREE||!Engine||!Gestures||!HandMap||!TrackingGate||!ValveAssets)throw new Error('Missing WallPipe dependencies or valve GLB loader');
+const HandMap=window.WallPipeHandScreenMap, TrackingGate=window.WallPipeTrackingGate, ValveAssets=window.WallPipeValveAssets,PipeAssets=window.WallPipePipeAssets;
+if(!THREE||!Engine||!Gestures||!HandMap||!TrackingGate||!ValveAssets||!PipeAssets)throw new Error('Missing WallPipe dependencies or mesh loaders');
 const $=id=>document.getElementById(id);
 const ui={stage:$('stage'),canvas:$('arCanvas'),start:$('start'),place:$('place'),reset:$('reset'),panel:$('panel'),collapse:$('collapse'),preview:$('preview'),status:$('status'),statusText:$('statusText'),info:$('info'),hand:$('handState'),pointer:$('pointer'),opening:$('opening'),openingOut:$('openingOut'),select:$('valveSelect'),toggle:$('toggle'),summary:$('flowSummary'),quick:$('quickAction'),alignment:$('handTransform'),handRetry:$('handRetry'),rescan:$('rescan'),trackingDetails:$('trackingDetails'),handHud:$('handHud'),scale:$('placeScale'),scaleOut:$('placeScaleOut'),distance:$('placeDistance'),distanceOut:$('placeDistanceOut'),height:$('placeHeight'),heightOut:$('placeHeightOut'),reticle:$('targetReticle')};
 const clamp=(v,lo,hi)=>Math.min(hi,Math.max(lo,v));
@@ -38,6 +38,9 @@ function buildNetwork(){
  const seed=(Math.random()*4294967295)>>>0;
  network=Engine.makeNetwork({mode,surface:'wall',seed});openings=[1,1,1];Gestures.reset(gesture);selected=0;
  if(!anchor){syncControls();return;}
+ const previousPipe=anchor.userData.pipeAssetRoot;
+ if(previousPipe){anchor.remove(previousPipe);for(const material of anchor.userData.pipeAssetMaterials||[])material.dispose();}
+ anchor.userData.pipeAssetRoot=null;anchor.userData.pipeAssetMaterials=[];
  const disposed=new Set();
  for(const root of anchor.userData.valveAssetRoots||[])root.traverse(obj=>{
   if(!obj.isMesh)return;
@@ -71,29 +74,30 @@ function buildNetwork(){
  // Translucent reference plane establishes a physical depth cue when viewed obliquely.
  const wallPanel=at(anchor,new THREE.PlaneGeometry(1.88,1.24),material(0x92a9a2,0,.075));
  wallPanel.position.z=-.11;
+ const pipeFallback=new THREE.Group();pipeFallback.name='legacy-pipe-loading-fallback';anchor.add(pipeFallback);
  const jointRadius=new Map(),degrees=new Map(),pulseGeo=new THREE.SphereGeometry(.020,8,6);
  for(const e of network.edges){
   const r=clamp(e.diameter*.00172,.014,.052);
   for(const id of [e.a,e.b]){jointRadius.set(id,Math.max(jointRadius.get(id)||0,r));degrees.set(id,(degrees.get(id)||0)+1);}
   const a=point(network.nodes[e.a]),b=point(network.nodes[e.b]);
   const m=e.kind==='return'?returnM:e.kind==='load'?loadM:pipeM;
-  if(e.valveIndex<0)addRod(anchor,a,b,r,m);
+  if(e.valveIndex<0)addRod(pipeFallback,a,b,r,m);
   // A pipe sleeve shows the transition between a header and a smaller branch.
-  if(e.kind==='supply'&&r>.032)collar(anchor,a.clone().lerp(b,.83),r,b.clone().sub(a).normalize(),1.14);
+  if(e.kind==='supply'&&r>.032)collar(pipeFallback,a.clone().lerp(b,.83),r,b.clone().sub(a).normalize(),1.14);
   const pulse=at(anchor,pulseGeo,waterM,a.clone());
   pulse.visible=false;flowMarkers.push({mesh:pulse,edge:e,a,b});
  }
  const junctionShape=new THREE.SphereGeometry(1,12,9);
  for(const [id,r] of jointRadius){
-  const p=point(network.nodes[id]),j=at(anchor,junctionShape,jointM,p);
+  const p=point(network.nodes[id]),j=at(pipeFallback,junctionShape,jointM,p);
   j.scale.setScalar(r*1.06);
-  if((degrees.get(id)||0)>=3)at(anchor,new THREE.BoxGeometry(r*2.05,r*2.05,.025),jointM,p.clone().add(new THREE.Vector3(0,0,-.021)));
+  if((degrees.get(id)||0)>=3)at(pipeFallback,new THREE.BoxGeometry(r*2.05,r*2.05,.025),jointM,p.clone().add(new THREE.Vector3(0,0,-.021)));
  }
  // A few support standoffs connect the long runs to the wall.
  let supports=0;
  for(const [id,degree] of degrees){if(degree<2||supports>=4)continue;
   const p=point(network.nodes[id]);p.z=-.035;
-  at(anchor,new THREE.BoxGeometry(.032,.027,.14),wheelM,p);supports++;
+  at(pipeFallback,new THREE.BoxGeometry(.032,.027,.14),wheelM,p);supports++;
  }
  function attachAuthoredValve(i){
   const v=network.valves[i],edge=network.edges[v.edgeId];
@@ -121,6 +125,21 @@ function buildNetwork(){
   });
  }
  for(let i=0;i<network.valves.length;i++)attachAuthoredValve(i);
+ // Graph-driven hollow GLB fittings replace old straight cylinders and spherical
+ // junctions after loading. The transparent fallback is removed only on success.
+ PipeAssets.createPipeAssembly(network,{mode}).then(({root,materials,stats})=>{
+  if(revision!==valveRevision||!anchor){for(const m of materials)m.dispose();return;}
+  anchor.add(root);anchor.userData.pipeAssetRoot=root;
+  anchor.userData.pipeAssetMaterials=materials;
+  const discarded=new Set();
+  pipeFallback.traverse(o=>{if(o.geometry&&!discarded.has(o.geometry)){discarded.add(o.geometry);o.geometry.dispose();}});
+  anchor.remove(pipeFallback);
+  console.info('Hollow pipe kit loaded',stats);
+ }).catch(error=>{
+  if(revision!==valveRevision)return;
+  console.error('Pipe kit load failed; retaining fallback',error);
+  ui.info.textContent='精密配管モデルの読み込みに失敗しました。通信状況を確認して配管を再生成してください。';
+ });
  anchor.userData.materials=ownedMaterials;
  anchor.userData.textures=labelTextures;
  refreshFlow();syncControls();
