@@ -10,7 +10,7 @@ const ui={stage:$('stage'),canvas:$('arCanvas'),start:$('start'),place:$('place'
 const clamp=(v,lo,hi)=>Math.min(hi,Math.max(lo,v));
 let started=false,scene=null,camera=null,anchor=null,video=null,ownedVideo=null,tracking=false,lastTracking='',lastReason='';
 let mode='water',network=null,openings=[1,1,1],selected=0,modelReady=false,landmarker=null,loadingHand=false;
-let valves=[],flowMarkers=[],gesture=Gestures.createState(),lastInference=0,lastMessage='',handInitFailed=false,lastVideoTime=-1,lastHandsSeen=0,valveRevision=0,occlusionFault=false,handGeneration=0,handTimer=0,handSampleDelay=230,slowFrames=0,fatalError=false;
+let valves=[],flowMarkers=[],gesture=Gestures.createState(),lastInference=0,lastMessage='',handInitFailed=false,lastVideoTime=-1,lastHandsSeen=0,valveRevision=0,occlusionFault=false,handGeneration=0,handTimer=0,handSampleDelay=230,slowFrames=0,fatalError=false,trackingSlow=false;
 const trackingGate=TrackingGate.createState();
 const colorByMode={water:0x2b8ea1,air:0x368d74,plant:0xb37a38};
 function state(status,message){if(ui.status.dataset.status!==status||ui.statusText.textContent!==message){ui.status.dataset.status=status;ui.statusText.textContent=message;}}
@@ -87,7 +87,12 @@ function scheduleHandSampling(){
 function updateQuickAction(){
  if(fatalError){ui.quick.hidden=false;ui.quick.textContent='ARを再起動する';ui.quick.disabled=false;return;}
  if(!started){ui.quick.hidden=false;ui.quick.textContent='ARカメラを開始';ui.quick.disabled=!window.XR8;return;}
- if(!modelReady){ui.quick.hidden=false;ui.quick.textContent=tracking?'配管を空間に配置':'空間を認識中…';ui.quick.disabled=!tracking;return;}
+ if(!modelReady){
+  ui.quick.hidden=false;
+  ui.quick.textContent=tracking?'配管を空間に配置':trackingSlow?'追跡をやり直す':'空間を認識中…';
+  ui.quick.disabled=!tracking&&!trackingSlow;
+  return;
+ }
  ui.quick.hidden=true;
 }
 function setSelection(index){selected=clamp(index,0,2);ui.select.value=String(selected);syncControls();}
@@ -327,7 +332,7 @@ function pipePipelineModule(){return {
  name:'wallpipe-world-hand',
  onStart:()=>{
   releaseAnchorResources();
-  modelReady=false;tracking=false;fatalError=false;
+  modelReady=false;tracking=false;fatalError=false;trackingSlow=false;
   trackingGate.good=0;trackingGate.bad=0;trackingGate.stable=false;
   const xrscene=window.XR8.Threejs.xrScene();scene=xrscene.scene;camera=xrscene.camera;
   scene.add(new THREE.HemisphereLight(0xf3fffc,0x49605f,2.2));
@@ -354,7 +359,7 @@ function pipePipelineModule(){return {
   const stable=TrackingGate.update(trackingGate,status);
   if(stable!==tracking||status!==lastTracking||reason!==lastReason){
    tracking=stable;lastTracking=status;lastReason=reason;
-   if(tracking&&fatalError){fatalError=false;updateQuickAction();}
+   if(tracking){trackingSlow=false;if(fatalError)fatalError=false;updateQuickAction();}
    ui.trackingDetails.textContent=tracking?'追跡：安定（NORMAL）':status==='NORMAL'?'追跡：安定化中':status==='LIMITED'?`追跡：制限あり（${reason}）`:'追跡：初期化中';
    ui.rescan.disabled=false;
    if(tracking){state('ready','空間追跡が安定しました。配管を配置できます。');ui.place.disabled=false;}
@@ -381,7 +386,8 @@ function startAR(){
   window.XR8.addCameraPipelineModules(modules);
   const session=window.XR8.run({canvas:ui.canvas,allowedDevices:window.XR8.XrConfig.device().ANY,cameraConfig:{direction:window.XR8.XrConfig.camera().BACK}});
   if(session&&typeof session.catch==='function')session.catch(e=>failAR('ARを開始できませんでした。再起動してください。',e));
-  setTimeout(()=>{if(started&&!tracking&&!modelReady){
+  setTimeout(()=>{if(started&&!tracking&&!modelReady&&!fatalError){
+    trackingSlow=true;updateQuickAction();
     ui.trackingDetails.textContent='認識が続いています。明るい場所で、模様のある床・家具をゆっくり映してください。';
     ui.rescan.disabled=false;
   }},12000);
@@ -411,6 +417,7 @@ ui.presetOverview.addEventListener('click',()=>selectViewPreset('overview'));
 ui.start.addEventListener('click',()=>{if(fatalError)window.location.reload();else startAR();});
 ui.rescan.addEventListener('click',()=>{
   if(!started||!window.XR8)return;
+  trackingSlow=false;updateQuickAction();
   resetPlacement();TrackingGate.update(trackingGate,'LIMITED',10,3);tracking=false;
   if(typeof window.XR8.XrController.recenter==='function')window.XR8.XrController.recenter();
   else if(camera)window.XR8.XrController.updateCameraProjectionMatrix({origin:camera.position,facing:camera.quaternion});
@@ -421,7 +428,7 @@ ui.occlusionToggle.addEventListener('change',()=>{occlusionFault=false;if(!ui.oc
 window.addEventListener('resize',clearHandOcclusion);
 ui.handRetry.addEventListener('click',()=>{if(video&&!loadingHand){initializeHandTracking();}else ui.hand.textContent='先にARを開始し、配管を配置してください。';});
 document.addEventListener('visibilitychange',()=>{Gestures.reset(gesture);clearHandOcclusion();showHandPoint(null,'');lastInference=0;if(document.hidden&&started)ui.hand.textContent='アプリは一時停止中です。';else if(!document.hidden&&started)ui.hand.textContent=handInitFailed?'手認識を再試行するか、タッチで操作してください。':landmarker?'手認識が有効です。':'配管を配置すると手認識を準備します。';});
-ui.quick.addEventListener('click',()=>{if(fatalError){window.location.reload();return;}if(!started)startAR();else if(!modelReady)placeModel();});
+ui.quick.addEventListener('click',()=>{if(fatalError){window.location.reload();return;}if(!started)startAR();else if(!modelReady){if(tracking)placeModel();else if(trackingSlow)ui.rescan.click();}});
 ui.place.addEventListener('click',placeModel);
 ui.reset.addEventListener('click',resetPlacement);
 ui.collapse.addEventListener('click',()=>{const closed=ui.panel.classList.toggle('is-collapsed');ui.collapse.setAttribute('aria-expanded',String(!closed));ui.collapse.textContent=closed?'操作を開く':'操作を閉じる';});
