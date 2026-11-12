@@ -3,10 +3,10 @@
  * Image-space hand/valve interaction is approximate, not 3D collision detection.
  */
 const THREE=window.THREE, Engine=window.WallPipeEngine, Gestures=window.WallPipeGesture;
-const HandMap=window.WallPipeHandScreenMap, TrackingGate=window.WallPipeTrackingGate, ValveAssets=window.WallPipeValveAssets,PipeAssets=window.WallPipePipeAssets,HandOcclusion=window.WallPipeHandOcclusion;
-if(!THREE||!Engine||!Gestures||!HandMap||!TrackingGate||!ValveAssets||!PipeAssets||!HandOcclusion)throw new Error('Missing WallPipe dependencies or mesh loaders');
+const HandMap=window.WallPipeHandScreenMap, TrackingGate=window.WallPipeTrackingGate, ValveAssets=window.WallPipeValveAssets,PipeAssets=window.WallPipePipeAssets,HandOcclusion=window.WallPipeHandOcclusion, HandLoader=window.WallPipeHandModelLoader;
+if(!THREE||!Engine||!Gestures||!HandMap||!TrackingGate||!ValveAssets||!PipeAssets||!HandOcclusion||!HandLoader)throw new Error('Missing WallPipe dependencies or mesh loaders');
 const $=id=>document.getElementById(id);
-const ui={stage:$('stage'),canvas:$('arCanvas'),start:$('start'),place:$('place'),reset:$('reset'),panel:$('panel'),collapse:$('collapse'),preview:$('preview'),status:$('status'),statusText:$('statusText'),info:$('info'),hand:$('handState'),pointer:$('pointer'),opening:$('opening'),openingOut:$('openingOut'),select:$('valveSelect'),toggle:$('toggle'),summary:$('flowSummary'),quick:$('quickAction'),alignment:$('handTransform'),handRetry:$('handRetry'),rescan:$('rescan'),trackingDetails:$('trackingDetails'),handHud:$('handHud'),scale:$('placeScale'),scaleOut:$('placeScaleOut'),distance:$('placeDistance'),distanceOut:$('placeDistanceOut'),height:$('placeHeight'),heightOut:$('placeHeightOut'),reticle:$('targetReticle'),occlusion:$('handOcclusion'),occlusionToggle:$('handOcclusionToggle')};
+const ui={stage:$('stage'),canvas:$('arCanvas'),start:$('start'),place:$('place'),reset:$('reset'),panel:$('panel'),collapse:$('collapse'),preview:$('preview'),status:$('status'),statusText:$('statusText'),info:$('info'),hand:$('handState'),pointer:$('pointer'),opening:$('opening'),openingOut:$('openingOut'),select:$('valveSelect'),toggle:$('toggle'),summary:$('flowSummary'),quick:$('quickAction'),alignment:$('handTransform'),handRetry:$('handRetry'),rescan:$('rescan'),trackingDetails:$('trackingDetails'),handHud:$('handHud'),scale:$('placeScale'),scaleOut:$('placeScaleOut'),distance:$('placeDistance'),distanceOut:$('placeDistanceOut'),height:$('placeHeight'),heightOut:$('placeHeightOut'),reticle:$('targetReticle'),occlusion:$('handOcclusion'),occlusionToggle:$('handOcclusionToggle'),presetExplore:$('presetExplore'),presetOverview:$('presetOverview'),handFailureDetails:$('handFailureDetails')};
 const clamp=(v,lo,hi)=>Math.min(hi,Math.max(lo,v));
 let started=false,scene=null,camera=null,anchor=null,video=null,ownedVideo=null,tracking=false,lastTracking='',lastReason='';
 let mode='water',network=null,openings=[1,1,1],selected=0,modelReady=false,landmarker=null,loadingHand=false;
@@ -158,7 +158,7 @@ function buildNetwork(){
  refreshFlow();syncControls();
  ui.preview.textContent='配管は仮想の設備です。配置後はその位置に留まり、端末を動かすと横から観察できます。';
 }
-function resetPlacement(){clearHandOcclusion();if(anchor){anchor.visible=false;}modelReady=false;ui.reticle.classList.remove('is-placed');ui.distance.disabled=false;ui.height.disabled=false;ui.scale.disabled=false;ui.reset.disabled=true;ui.place.disabled=!tracking;Gestures.reset(gesture);showHandPoint(null,'');updateQuickAction();info('配置を解除しました。カメラで壁を映し、再配置してください。');}
+function resetPlacement(){clearHandOcclusion();if(anchor){anchor.visible=false;}modelReady=false;ui.reticle.classList.remove('is-placed');ui.distance.disabled=false;ui.height.disabled=false;ui.scale.disabled=false;ui.presetExplore.disabled=false;ui.presetOverview.disabled=false;ui.reset.disabled=true;ui.place.disabled=!tracking;Gestures.reset(gesture);showHandPoint(null,'');updateQuickAction();info('配置を解除しました。カメラで壁を映し、再配置してください。');}
 function placeModel(){
  if(!tracking||!camera||!anchor){info('追跡が安定してから配置してください。');return;}
  // Tracking comes from XR8; the approximate wall target is 1.5m along the view ray.
@@ -172,7 +172,7 @@ function placeModel(){
  anchor.scale.setScalar(Number(ui.scale.value));
  anchor.rotation.set(0,Math.atan2(-flat.x,-flat.z),0);
  anchor.visible=true;anchor.updateMatrixWorld(true);
- ui.reticle.classList.add('is-placed');ui.distance.disabled=true;ui.height.disabled=true;ui.scale.disabled=true;
+ ui.reticle.classList.add('is-placed');ui.distance.disabled=true;ui.height.disabled=true;ui.scale.disabled=false;ui.presetExplore.disabled=true;ui.presetOverview.disabled=true;
  modelReady=true;ui.reset.disabled=false;ui.place.disabled=false;
  Gestures.reset(gesture);updateQuickAction();
  ui.hand.textContent=landmarker?'手認識が有効です。バルブの前でピンチしてください。':'手認識を準備しています…';
@@ -198,16 +198,33 @@ function handleGesture(result){
 }
 async function initializeHandTracking(){
  if(loadingHand||landmarker||!video)return;
- loadingHand=true;handInitFailed=false;ui.handRetry.style.display='none';ui.hand.textContent='手認識モデルを読み込み中…';handStatus('idle','手認識：モデルを読み込み中');
+ loadingHand=true;handInitFailed=false;ui.handRetry.style.display='none';
+ ui.handFailureDetails.hidden=true;ui.handFailureDetails.textContent='';
+ ui.hand.textContent='手認識ライブラリを準備中…';handStatus('idle','手認識：初期化を開始しました');
  try{
-  const {FilesetResolver,HandLandmarker}=await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/vision_bundle.mjs');
-  const vision=await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm');
-  const opts={baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',delegate:'GPU'},runningMode:'VIDEO',numHands:1,minHandDetectionConfidence:.6,minHandPresenceConfidence:.6,minTrackingConfidence:.6};
-  try{landmarker=await HandLandmarker.createFromOptions(vision,opts);}catch(e){console.warn('GPU hand inference unavailable; falling back to CPU',e);opts.baseOptions.delegate='CPU';landmarker=await HandLandmarker.createFromOptions(vision,opts);}
-  ui.hand.textContent='手認識が有効です。バルブの前でピンチしてください。';handStatus('ready','手認識：準備完了。手をカメラに映してください。');
- }catch(err){console.error('Hand tracker unavailable',err);handInitFailed=true;ui.handRetry.style.display='block';ui.hand.textContent='手認識を起動できません。画面タップ・スライダーで操作するか、再試行してください。';handStatus('error','手認識：モデル読込失敗。操作パネルから再試行');}
- finally{loadingHand=false;}
+  const result=await HandLoader.load({
+   preferGPU:false,
+   timeoutMs:20000,
+   onStage:(stage,message)=>{
+    ui.hand.textContent=message;
+    handStatus(stage==='READY'?'ready':'idle','手認識 '+stage+'：'+message);
+   }
+  });
+  landmarker=result.landmarker;
+  ui.hand.textContent='手認識が有効です。バルブの前でピンチしてください。';
+  handStatus('ready','手認識：準備完了（'+result.delegate+' / '+result.provider+'）。手を映してください。');
+ }catch(err){
+  console.error('Hand tracker unavailable',err);
+  handInitFailed=true;ui.handRetry.style.display='block';
+  const kind=err?.stage==='SDK'?'ライブラリ取得':err?.stage==='WASM'?'推論エンジン読込':'認識モデルの初期化';
+  const cause=String(err?.details?.at(-1)||err?.message||'Unknown error').slice(0,210);
+  ui.handFailureDetails.hidden=false;
+  ui.handFailureDetails.textContent='失敗した処理：'+kind+'。詳細：'+cause+'。ネットワーク接続を確認し、再試行してください。';
+  ui.hand.textContent='手認識を起動できません。下の診断情報を確認し、再試行してください。';
+  handStatus('error','手認識：'+kind+'に失敗。操作パネルの詳細を確認');
+ }finally{loadingHand=false;}
 }
+
 function sampleHand(){
  if(!tracking||!modelReady||document.hidden){showHandPoint(null,'');clearHandOcclusion();return;}
  if(!video){clearHandOcclusion();handStatus('error','手認識：カメラ映像を取得できません');return;}
@@ -295,7 +312,21 @@ window.addEventListener('xrloaded',checkEngine);
 if(!checkEngine())setTimeout(()=>{if(!window.XR8){state('error','8th Wallエンジンを読み込めません。ネット接続と対応ブラウザを確認してください。');ui.start.disabled=true;}},14000);
 ui.distance.addEventListener('input',()=>{ui.distanceOut.textContent=Number(ui.distance.value).toFixed(1)+'m';});
 ui.height.addEventListener('input',()=>{ui.heightOut.textContent=Math.round(Number(ui.height.value)*100)+'cm';});
-ui.scale.addEventListener('input',()=>{ui.scaleOut.textContent=Math.round(Number(ui.scale.value)*100)+'%';});
+ui.scale.addEventListener('input',()=>{ui.scaleOut.textContent=Math.round(Number(ui.scale.value)*100)+'%';if(modelReady&&anchor)anchor.scale.setScalar(Number(ui.scale.value));});
+function selectViewPreset(kind){
+ if(modelReady){info('観察方法を変更する場合は、一度「配置を解除」してください。');return;}
+ const nearby=kind==='explore';
+ ui.distance.value=nearby?'1.3':'2.2';
+ ui.scale.value=nearby?'1.4':'0.95';
+ ui.distanceOut.textContent=Number(ui.distance.value).toFixed(1)+'m';
+ ui.scaleOut.textContent=Math.round(Number(ui.scale.value)*100)+'%';
+ ui.presetExplore.setAttribute('aria-pressed',String(nearby));
+ ui.presetOverview.setAttribute('aria-pressed',String(!nearby));
+ info(nearby?'近くで探索：配管が視野からはみ出す配置です。スマホを移動して観察します。':'全体を確認：配管全体を遠めから観察する配置です。');
+}
+ui.presetExplore.addEventListener('click',()=>selectViewPreset('explore'));
+ui.presetOverview.addEventListener('click',()=>selectViewPreset('overview'));
+
 ui.start.addEventListener('click',startAR);
 ui.rescan.addEventListener('click',()=>{
   if(!started||!window.XR8)return;
