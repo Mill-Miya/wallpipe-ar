@@ -68,16 +68,15 @@ function disposeBundle(bundle){
 async function attachValveModels(bundle,network,token){
  bundle.valveRoots=[];
  const items=network.valves.map(async(v,i)=>{
-  const edge=network.edges[v.edgeId],a=network.nodes[edge.a],b=network.nodes[edge.b];
-  const x=(a.x+b.x)*.00265/2,y=-(a.y+b.y)*.00265/2;
-  const type=mode==='water'?'ball':mode==='air'?'control':['gate','ball','butterfly'][i%3];
-  const model=await loadValveModel(type);
+  const fit=window.WallPipeValvePlacement.mounting(network,i);
+  const model=await loadValveModel(fit.type);
   if(token!==seq){
     model.root.traverse(obj=>{if(obj.isMesh){obj.geometry.dispose();for(const m of Array.isArray(obj.material)?obj.material:[obj.material])m?.dispose();}});
     return false;
   }
-  const mount=new THREE.Group();mount.position.set(x,y,.06);
-  mount.rotation.z=v.axis==='h'?-Math.PI/2:0;mount.scale.setScalar(.68);
+  const mount=new THREE.Group();mount.position.set(fit.x,fit.y,fit.z);
+  mount.rotation.z=fit.rotationZ;
+  mount.scale.set(fit.radialScale,fit.axialScale,fit.radialScale);
   mount.add(model.root);bundle.root.add(mount);bundle.valveRoots.push(model.root);
   if(model.disc)model.disc.rotation.z=Math.PI/2;
   return true;
