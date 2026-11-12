@@ -13,7 +13,7 @@ Scope: project repository only. No third-party repositories modified.
 1. **Hand inference blocking XR frame callbacks**: stopped invoking MediaPipe directly from XR8 `onUpdate`. A separate timer samples after frame updates. On unusually slow inferences, the interval is increased to reduce contention; it is not a separate worker thread, and CPU stalls remain possible.
 2. **Late GLB model loading**: when a network regeneration makes an async valve response obsolete, dispose its cloned meshes/materials rather than silently leaking them.
 3. **Camera teardown**: invalidate pending work, close hand inference, stop timers, release owned textures/meshes and cached-kit instance materials without disposing shared pipe-kit geometry, and reset placement.
-4. **Camera failures**: show a restart action for camera/engine errors rather than leaving the user permanently on a disabled “tracking” control.
+4. **Camera failures and slow tracking**: show a restart action for camera/engine errors; after prolonged SLAM initialization show a direct tracking-rescan action rather than leaving the user permanently on a disabled “tracking” control.
 5. **Hand mask geometry**: corrected finger capsule end-cap curvature in the approximate foreground composite.
 6. **Pinch acquisition**: allow entering a valve target while holding a pinch that started elsewhere.
 7. **Mobile visual field**: reduce obstructive instructional overlays after the user places piping; keep genuine 3D loading errors visible.
