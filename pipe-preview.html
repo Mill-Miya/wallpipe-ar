@@ -22,7 +22,7 @@ aside p{font-size:12px;line-height:1.75;color:#5b7073}nav a{font-size:12px}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script>
 </head><body>
-<header><div><h1>WallPipe AR｜配管モデル</h1><div class="sub">中空管・曲げ管・分岐継手の3D確認</div></div><nav><a href="./index.html">ARへ戻る</a></nav></header>
+<header><div><h1>WallPipe AR｜配管モデル</h1><div class="sub">中空管・曲げ管・分岐継手・バルブの3D確認</div></div><nav><a href="./index.html">ARへ戻る</a></nav></header>
 <main><div id="stage"><canvas id="canvas" aria-label="配管を回転できる3Dプレビュー"></canvas>
 <div class="note">ドラッグ：回転　ピンチ／ホイール：拡大縮小。これは仮想設備の教材用3Dモデルで、施工図ではありません。</div>
 <div id="status" role="status" aria-live="polite">3Dモデルを読み込み中…</div></div>
@@ -33,7 +33,7 @@ aside p{font-size:12px;line-height:1.75;color:#5b7073}nav a{font-size:12px}
 <button id="regenerate" class="wide">別の配管を生成</button>
 <button id="resetView" class="wide">視点を正面に戻す</button>
 <div id="metrics" class="metrics" role="status">接続関係を解析中…</div>
-<p>管は中空の独立メッシュ。曲がり角は滑らかなエルボ、三方分岐は内部の流路が連続した鋳物形状として再現しています。バルブの外観・流体計算は変更していません。</p>
+<p>管は中空の独立メッシュで、曲がり角は曲面エルボです。配管が途切れて見えないよう、バルブ接続位置には独立した3Dバルブを表示しています。流体計算は変更していません。</p>
 <p><a href="./ar-hand.html">空間固定ARで見る</a></p>
 </aside></main>
 <script src="./js/piping-engine.js"></script>
@@ -41,27 +41,62 @@ aside p{font-size:12px;line-height:1.75;color:#5b7073}nav a{font-size:12px}
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {createPipeAssembly} from './js/pipe-assets.js';
+import {loadValveModel} from './js/valve-assets.js';
 const $=id=>document.getElementById(id),canvas=$('canvas'),stage=$('stage');
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));renderer.setClearColor(0xdde4df);
-renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.40;
 const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(42,1,.03,40);
-scene.add(new THREE.HemisphereLight(0xffffff,0x52656a,2.35));
-const sun=new THREE.DirectionalLight(0xffffff,2.5);sun.position.set(-1.5,2,3.5);scene.add(sun);
+scene.add(new THREE.HemisphereLight(0xffffff,0xaebfbd,2.1));scene.add(new THREE.AmbientLight(0xffffff,1.4));
+const sun=new THREE.DirectionalLight(0xffffff,2.25);sun.position.set(-1.5,2,3.5);scene.add(sun);
+const fill=new THREE.DirectionalLight(0xcde5ed,1.35);fill.position.set(2,-1,2);scene.add(fill);
 const controls=new OrbitControls(camera,canvas);controls.enableDamping=true;controls.dampingFactor=.08;controls.minDistance=.65;controls.maxDistance=6;
 const resetCamera=()=>{camera.position.set(.3,.15,2.75);controls.target.set(0,0,.06);controls.update();};
 resetCamera();let mode='water',seed=15,active=null,seq=0;
+function disposeBundle(bundle){
+ if(!bundle)return;
+ scene.remove(bundle.root);
+ for(const m of bundle.materials||[])m.dispose();
+ // Pipe-kit geometries are shared and cached; only valve clones are owned.
+ for(const root of bundle.valveRoots||[])root.traverse(obj=>{
+   if(!obj.isMesh)return;
+   obj.geometry.dispose();
+   for(const m of Array.isArray(obj.material)?obj.material:[obj.material])m?.dispose();
+ });
+}
+async function attachValveModels(bundle,network,token){
+ bundle.valveRoots=[];
+ const items=network.valves.map(async(v,i)=>{
+  const edge=network.edges[v.edgeId],a=network.nodes[edge.a],b=network.nodes[edge.b];
+  const x=(a.x+b.x)*.00265/2,y=-(a.y+b.y)*.00265/2;
+  const type=mode==='water'?'ball':mode==='air'?'control':['gate','ball','butterfly'][i%3];
+  const model=await loadValveModel(type);
+  if(token!==seq){
+    model.root.traverse(obj=>{if(obj.isMesh){obj.geometry.dispose();for(const m of Array.isArray(obj.material)?obj.material:[obj.material])m?.dispose();}});
+    return false;
+  }
+  const mount=new THREE.Group();mount.position.set(x,y,.06);
+  mount.rotation.z=v.axis==='h'?-Math.PI/2:0;mount.scale.setScalar(.68);
+  mount.add(model.root);bundle.root.add(mount);bundle.valveRoots.push(model.root);
+  if(model.disc)model.disc.rotation.z=Math.PI/2;
+  return true;
+ });
+ const results=await Promise.allSettled(items);
+ return results.filter(x=>x.status==='fulfilled'&&x.value===true).length;
+}
 async function build(){
  const token=++seq,n=window.WallPipeEngine.makeNetwork({mode,surface:'wall',seed});
  $('status').textContent='配管を生成中…';
  try{
   const bundle=await createPipeAssembly(n,{mode});
-  if(token!==seq){for(const m of bundle.materials)m.dispose();return;}
-  if(active){scene.remove(active.root);for(const m of active.materials)m.dispose();}
+  if(token!==seq){disposeBundle(bundle);return;}
+  const valveCount=await attachValveModels(bundle,n,token);
+  if(token!==seq){disposeBundle(bundle);return;}
+  disposeBundle(active);
   active=bundle;scene.add(bundle.root);
   const t=bundle.stats;
-  $('status').textContent='読み込み完了。視点を動かして接続部を確認できます。';
-  $('metrics').textContent='直管：'+t.spans+' / 継手：'+t.fittings+'\nエルボ：'+t.elbows+' / T字：'+t.tees+'\nレジューサ：'+t.reducers+' / 支持具：'+t.supports;
+  $('status').textContent=valveCount===n.valves.length?'読み込み完了。配管とバルブを色・接続・側面から確認できます。':'配管は表示しましたが、一部のバルブを読み込めませんでした。';
+  $('metrics').textContent='直管：'+t.spans+' / 継手：'+t.fittings+'\nエルボ：'+t.elbows+' / T字：'+t.tees+'\nレジューサ：'+t.reducers+' / 支持具：'+t.supports+'\nバルブ：'+valveCount+' / '+n.valves.length;
  }catch(e){console.error(e);$('status').textContent='配管モデルを読み込めませんでした。通信とページの再読み込みを確認してください。';}
 }
 for(const b of document.querySelectorAll('[data-mode]'))b.addEventListener('click',()=>{
