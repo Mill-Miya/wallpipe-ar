@@ -47,9 +47,11 @@
   const angle=Math.atan2(b.y-a.y,b.x-a.x),nx=-Math.sin(angle)*r,ny=Math.cos(angle)*r;
   ctx.moveTo(a.x+nx,a.y+ny);
   ctx.lineTo(b.x+nx,b.y+ny);
-  ctx.arc(b.x,b.y,r,angle+Math.PI/2,angle+Math.PI*1.5);
+  // The far cap must bulge *forward* along a->b, not back into the bone.
+  ctx.arc(b.x,b.y,r,angle+Math.PI/2,angle-Math.PI/2,true);
   ctx.lineTo(a.x-nx,a.y-ny);
-  ctx.arc(a.x,a.y,r,angle-Math.PI/2,angle+Math.PI/2);
+  // The wrist cap must bulge backward, maintaining a true capsule silhouette.
+  ctx.arc(a.x,a.y,r,angle+Math.PI*1.5,angle+Math.PI/2,true);
   ctx.closePath();
  }
  function render(canvas,video,points,{mode='normal',pixelRatio=1.25}={}){
