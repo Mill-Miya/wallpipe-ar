@@ -21,6 +21,16 @@ e=gesture.step(state,hand(true,3*Math.PI/4),valves,opening,200);assert.equal(e.k
 e=gesture.step(state,hand(false),valves,opening,250);assert.equal(e.kind,'release');
 assert.equal(gesture.step(state,null,valves,opening,350).kind,'lost');
 assert(Math.abs(gesture.deltaAngle(3.1,-3.1))<.1);
+// A pinch that begins away from the valve should acquire it when the hand moves close.
+const approach=gesture.createState(),v=[{x:250,y:300}],p=[0.25];
+let eApproach=gesture.step(approach,hand(true,0,{x:40,y:300}),v,p,0);
+assert.equal(eApproach.kind,'pinch-outside');
+eApproach=gesture.step(approach,hand(true,0,{x:250,y:300}),v,p,220);
+assert.equal(eApproach.kind,'grab');
+assert.equal(eApproach.index,0);
+eApproach=gesture.step(approach,hand(true,Math.PI/4,{x:250,y:300}),v,p,430);
+assert.equal(eApproach.kind,'rotate');
+assert(eApproach.value>p[0]);
 const network=makeNetwork({mode:'air',seed:34,surface:'wall'});
 let full=solveFlow(network,[true,true,true]);let half=solveFlow(network,[.5,true,true]);let closed=solveFlow(network,[0,true,true]);
 assert(half.terminalFlows[0]<full.terminalFlows[0]);assert(half.terminalFlows[0]>0);
