@@ -36,7 +36,7 @@ assert(page.includes('width:100vw!important')&&page.includes('height:100dvh!impo
  // and visible diagnostics are required before claiming AR hand usability.
 failIfMissing(['id="handHud"','id="placeScale"','id="placeDistance"','value="1.3"','value="1.40"'],page,'AR viewport and hand visibility');
 failIfMissing(['handStatus','ownedVideo.srcObject=sourceStream','anchor.scale.setScalar(Number(ui.scale.value))','ui.scale.disabled=false','lastInference=now'],app,'Hand feed and placement scale');
-assert(page.includes('v0.9.5'),'AR exploratory layout release marker must match');
+assert(page.includes('v0.9.6'),'AR exploratory layout release marker must match');
 failIfMissing(['id="handOcclusion"','id="handOcclusionToggle"','js/hand-occlusion.js'],page,'Hand foreground overlay UI');
 assert(page.includes('#stage.ar-placed~#preview'),'Placed AR should hide intrusive instruction');
 assert(page.includes('[data-alert="error"]'),'Asset error must remain visible after placement');
