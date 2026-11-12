@@ -40,6 +40,8 @@ assert(app.includes("ui.stage.classList.add('ar-placed')"),'Placed class is set 
 assert(app.includes("ui.stage.classList.remove('ar-placed')"),'Placed class clears on reset');
 assert(app.includes('releaseAnchorResources()'),'Session should free owned geometry on camera detach');
 assert(app.includes('failAR(')&&app.includes('window.location.reload()'),'Camera failures need a usable restart path');
+assert(app.includes("trackingSlow?'追跡をやり直す'"),'Slow SLAM tracking must offer the user a visible retry');
+assert(app.includes('else if(trackingSlow)ui.rescan.click()'),'Quick retry must invoke the actual rescan action');
 
 failIfMissing(['js/hand-model-loader.js','id="presetExplore"','id="presetOverview"','id="handFailureDetails"'],page,'Hand loader and AR exploration controls');
 failIfMissing(['HandLoader.load','preferGPU:false','ui.handFailureDetails.textContent','selectViewPreset','anchor.scale.setScalar(Number(ui.scale.value))'],app,'Pinned hand SDK and spatial exploration integration');
