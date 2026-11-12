@@ -115,6 +115,8 @@
         return a;
       };
       const ys=[-149,0,149].map(y=>y+offset(16));
+      // Distinct graph nodes at the manifold center must retain a real edge.
+      if(ys[1]===0)ys[1]=6;
       const inletX=-256+offset(13),outletX=258+offset(13);
       source=node(-315,0);sourceLabel='原料・供給';
       const target=node(315,0);targetLabel='設備出口';targets=[target];
