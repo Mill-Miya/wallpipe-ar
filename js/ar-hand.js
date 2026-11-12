@@ -3,8 +3,8 @@
  * Image-space hand/valve interaction is approximate, not 3D collision detection.
  */
 const THREE=window.THREE, Engine=window.WallPipeEngine, Gestures=window.WallPipeGesture;
-const HandMap=window.WallPipeHandScreenMap, TrackingGate=window.WallPipeTrackingGate, ValveAssets=window.WallPipeValveAssets,PipeAssets=window.WallPipePipeAssets,HandOcclusion=window.WallPipeHandOcclusion, HandLoader=window.WallPipeHandModelLoader;
-if(!THREE||!Engine||!Gestures||!HandMap||!TrackingGate||!ValveAssets||!PipeAssets||!HandOcclusion||!HandLoader)throw new Error('Missing WallPipe dependencies or mesh loaders');
+const HandMap=window.WallPipeHandScreenMap, TrackingGate=window.WallPipeTrackingGate, ValveAssets=window.WallPipeValveAssets,PipeAssets=window.WallPipePipeAssets,HandOcclusion=window.WallPipeHandOcclusion, HandLoader=window.WallPipeHandModelLoader,ValveMount=window.WallPipeValvePlacement;
+if(!THREE||!Engine||!Gestures||!HandMap||!TrackingGate||!ValveAssets||!PipeAssets||!HandOcclusion||!HandLoader||!ValveMount)throw new Error('Missing WallPipe dependencies or mesh loaders');
 const $=id=>document.getElementById(id);
 const ui={stage:$('stage'),canvas:$('arCanvas'),start:$('start'),place:$('place'),reset:$('reset'),panel:$('panel'),collapse:$('collapse'),preview:$('preview'),status:$('status'),statusText:$('statusText'),info:$('info'),hand:$('handState'),pointer:$('pointer'),opening:$('opening'),openingOut:$('openingOut'),select:$('valveSelect'),toggle:$('toggle'),summary:$('flowSummary'),quick:$('quickAction'),alignment:$('handTransform'),handRetry:$('handRetry'),rescan:$('rescan'),trackingDetails:$('trackingDetails'),handHud:$('handHud'),scale:$('placeScale'),scaleOut:$('placeScaleOut'),distance:$('placeDistance'),distanceOut:$('placeDistanceOut'),height:$('placeHeight'),heightOut:$('placeHeightOut'),reticle:$('targetReticle'),occlusion:$('handOcclusion'),occlusionToggle:$('handOcclusionToggle'),presetExplore:$('presetExplore'),presetOverview:$('presetOverview'),handFailureDetails:$('handFailureDetails')};
 const clamp=(v,lo,hi)=>Math.min(hi,Math.max(lo,v));
@@ -175,16 +175,18 @@ function buildNetwork(){
   at(pipeFallback,new THREE.BoxGeometry(.032,.027,.14),wheelM,p);supports++;
  }
  function attachAuthoredValve(i){
-  const v=network.valves[i],edge=network.edges[v.edgeId];
-  const a=point(network.nodes[edge.a]),b=point(network.nodes[edge.b]);
-  const p=a.clone().add(b).multiplyScalar(.5);
-  const type=mode==='water'?'ball':mode==='air'?'control':['gate','ball','butterfly'][i%3];
+  const fit=ValveMount.mounting(network,i);
+  const type=fit.type,p=new THREE.Vector3(fit.x,fit.y,fit.z);
   const mount=new THREE.Group();mount.name='valve-mount-'+i;
-  mount.position.copy(p);mount.rotation.z=v.axis==='h'?-Math.PI/2:0;mount.scale.setScalar(.68);
+  mount.position.copy(p);mount.rotation.z=fit.rotationZ;
+  // Local Y is the valve's pipeline axis. Fit actual flange-to-flange
+  // length to the authored edge while preserving actuator depth/height.
+  mount.scale.set(fit.radialScale,fit.axialScale,fit.radialScale);
   anchor.add(mount);
   const label=new THREE.Group();label.position.set(p.x,p.y,p.z);anchor.add(label);
   addValveLabel(label,i);
-  const entry={index:i,type,marker:new THREE.Vector3(p.x,p.y,p.z+.16),mount,handle:null,disc:null};
+  const handleHeight={ball:.177,gate:.255,butterfly:.181,control:.250}[type];
+  const entry={index:i,type,marker:new THREE.Vector3(p.x,p.y,p.z+handleHeight*fit.radialScale),mount,handle:null,disc:null};
   valves.push(entry);
   ValveAssets.loadValveModel(type).then(model=>{
    // Never attach a model from a previous regeneration of this AR scene.
