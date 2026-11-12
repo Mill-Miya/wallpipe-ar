@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#f7f8f4">
 <meta name="description" content="空間固定した立体配管を、手の動きで操作するWallPipe AR実験。実物の壁内配管は検知しません。">
-<title>WallPipe AR v0.9.8｜空間固定・手操作</title>
+<title>WallPipe AR v0.9.9｜空間固定・手操作</title>
 <style>
 :root{font-family:system-ui,"Hiragino Kaku Gothic ProN",Meiryo,sans-serif;color:#25383b;--ink:#25383b;--muted:#5f7174;--edge:#c5d0cc;--paper:#f7f8f4;--accent:#0c7180;--warn:#ae5e36}
 *{box-sizing:border-box}html,body{margin:0;height:100%;background:#e1e6e3}button,select,input{font:inherit}button{cursor:pointer}button:disabled{cursor:not-allowed;opacity:.55}:focus-visible{outline:3px solid #c97c21;outline-offset:3px}
@@ -70,7 +70,7 @@ details{font-size:12px;line-height:1.7;color:#56676b;margin-top:13px}summary{cur
 </head>
 <body>
 <div id="stage"><canvas id="arCanvas" aria-label="空間固定した3D配管とバルブのAR画面"></canvas><canvas id="handOcclusion" aria-hidden="true"></canvas></div>
-<header class="topbar"><div class="brand">WallPipe AR<small>空間固定・手操作 v0.9.8</small></div><a href="./index.html">シミュレーターへ戻る</a></header>
+<header class="topbar"><div class="brand">WallPipe AR<small>空間固定・手操作 v0.9.9</small></div><a href="./index.html">シミュレーターへ戻る</a></header>
 <div id="preview">配管はまだ配置されていません。空間追跡が始まったら正面の壁に向け、配置ボタンを押してください。</div>
 <div id="targetReticle" aria-hidden="true">＋</div><div id="pointer" aria-hidden="true"></div><div id="handHud" data-state="idle" role="status" aria-live="polite">手認識：配管配置後に起動</div>
 <aside class="panel is-collapsed" id="panel" aria-label="AR操作"><div class="panelHead"><div><div class="eyebrow">LIVE AR / HAND CONTROL</div><h1>バルブを手で回す</h1></div><button class="btn" id="collapse" type="button" aria-expanded="false">操作を開く</button></div><div class="panelbody">
@@ -83,7 +83,7 @@ details{font-size:12px;line-height:1.7;color:#56676b;margin-top:13px}summary{cur
  <button type="button" class="btn" id="presetOverview" aria-pressed="false">全体を確認</button>
 </div>
 <p class="notice">近くで探索：配管が画面外まで続く大きさで配置します。スマホを左右に動かして各バルブを観察してください。全体を確認：配置前の位置と倍率を遠めに設定します。</p>
-<div class="setting"><label for="placeDistance">配置までの推定距離</label><input id="placeDistance" type="range" min="0.7" max="3.5" value="1.3" step="0.1"><output id="placeDistanceOut" for="placeDistance">1.3m</output></div><div class="setting"><label for="placeHeight">高さの微調整</label><input id="placeHeight" type="range" min="-0.6" max="0.6" value="0" step="0.05"><output id="placeHeightOut" for="placeHeight">0cm</output></div><div class="setting"><label for="placeScale">配管の表示倍率</label><input id="placeScale" type="range" min="0.65" max="2.30" value="1.65" step="0.05"><output id="placeScaleOut" for="placeScale">165%</output></div><p class="notice">距離は配置前だけ、倍率は配置後でも調整可能です。壁の実測距離ではありません。</p><p class="notice">模様の少ない壁だけでは認識しにくいため、床や家具など特徴がある場所もゆっくり映してください。壁の位置を自動検出する機能ではありません。中央の＋を目安に距離と高さを調整して配置してください。</p></div><div class="section"><h2>配管の種類</h2><div class="grid3" role="group" aria-label="設備の種類"><button class="btn" type="button" data-mode="water" aria-pressed="true">給水</button><button class="btn" type="button" data-mode="air" aria-pressed="false">空調</button><button class="btn" type="button" data-mode="plant" aria-pressed="false">工場</button></div><button id="regen" type="button" class="btn">配管を再生成</button></div>
+<div class="setting"><label for="placeDistance">配置までの推定距離</label><input id="placeDistance" type="range" min="0.7" max="3.5" value="1.3" step="0.1"><output id="placeDistanceOut" for="placeDistance">1.3m</output></div><div class="setting"><label for="placeHeight">高さの微調整</label><input id="placeHeight" type="range" min="-0.6" max="0.6" value="0" step="0.05"><output id="placeHeightOut" for="placeHeight">0cm</output></div><div class="setting"><label for="placeScale">配管の表示倍率</label><input id="placeScale" type="range" min="0.65" max="2.60" value="1.85" step="0.05"><output id="placeScaleOut" for="placeScale">185%</output></div><p class="notice">距離は配置前だけ、倍率は配置後でも調整可能です。壁の実測距離ではありません。</p><p class="notice">模様の少ない壁だけでは認識しにくいため、床や家具など特徴がある場所もゆっくり映してください。壁の位置を自動検出する機能ではありません。中央の＋を目安に距離と高さを調整して配置してください。</p></div><div class="section"><h2>配管の種類</h2><div class="grid3" role="group" aria-label="設備の種類"><button class="btn" type="button" data-mode="water" aria-pressed="true">給水</button><button class="btn" type="button" data-mode="air" aria-pressed="false">空調</button><button class="btn" type="button" data-mode="plant" aria-pressed="false">工場</button></div><button id="regen" type="button" class="btn">配管を再生成</button></div>
 <div class="section"><label for="valveSelect">操作するバルブ</label><select id="valveSelect"><option value="0">V-01</option><option value="1">V-02</option><option value="2">V-03</option></select><div class="setting"><label for="opening" style="margin:0">開度</label><input id="opening" type="range" min="0" max="100" value="100"><output for="opening" id="openingOut">100%</output></div><button id="toggle" type="button" class="btn">選択したバルブを閉める</button><div id="flowSummary" role="status" style="margin-top:9px;font-size:12px">通水系統：3 / 3</div></div>
 <div class="section"><h2>手認識</h2><label class="occlusionToggle" for="handOcclusionToggle"><input type="checkbox" id="handOcclusionToggle" checked> 手の部分だけ3D描画を隠す（試験）</label><p class="notice">認識した手の形に合わせて、配管とバルブの3D描画だけを隠します。カメラ映像は再描画しません。輪郭や奥行きは近似です。</p><div id="handState" role="status" style="font-size:12px;line-height:1.6">配管を配置すると手認識を準備します。</div><div id="handFailureDetails" role="status" hidden></div><button type="button" class="btn" id="handRetry" style="display:none;margin-top:10px">手認識を再試行</button><div class="handAdjust"><label for="handTransform">指先表示の位置補正</label><select id="handTransform"><option value="normal">標準</option><option value="mirror">左右反転</option><option value="cw90">右90°回転</option><option value="ccw90">左90°回転</option><option value="rotate180">180°回転</option></select></div><p class="notice">指先の目印と実際の手がずれる場合だけ補正してください。映像の縦横比に合わせた座標変換を行います。</p><p class="notice">1本の指では作動しません。3Dバルブの近くでピンチ・回転するか、開いた手を約1.4秒かざしてください。画面に表示される「手認識」の状態を確認できます。</p></div>
 <details><summary>操作方法と制約</summary><ol><li>周囲が明るく、特徴のある壁へカメラを向けてARを開始します。</li><li>追跡が安定したら「この向きに配管を配置」を押します。表示位置はカメラ前方を基準にした推定位置で、壁面の自動検出ではありません。</li><li>バルブに手を近づけてピンチ・回転。認識に失敗する場合は画面タップ、スライダーでも操作できます。</li><li>配置したモデルはリセットするまで同じワールド座標を使います。追跡が失われるとズレる場合があります。</li></ol></details>
@@ -97,6 +97,7 @@ details{font-size:12px;line-height:1.7;color:#56676b;margin-top:13px}summary{cur
 <script src="./js/gesture-control.js"></script>
 <script src="./js/hand-screen-map.js"></script>
 <script src="./js/hand-depth-mask.js"></script>
+<script src="./js/flow-visuals.js"></script>
 <script src="./js/hand-model-loader.js"></script>
 <script src="./js/tracking-gate.js"></script>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script>
