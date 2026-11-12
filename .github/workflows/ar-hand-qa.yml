@@ -9,6 +9,8 @@ on:
       - assets/valves/**
       - valve-preview.html
       - js/valve-assets.js
+      - js/valve-placement.js
+      - tests/factory-valve-variation.test.cjs
       - tools/generate_valves.py
       - tests/valve-assets.test.cjs
       - js/ar-hand.js
@@ -36,7 +38,7 @@ jobs:
         with:
           node-version: '22'
       - name: JavaScript syntax
-        run: node --check js/valve-assets.js && node --check js/hand-occlusion.js && node --check js/hand-model-loader.js && node --check js/ar-hand.js && node --check js/gesture-control.js && node --check js/piping-engine.js && node --check js/hand-screen-map.js && node --check js/tracking-gate.js
+        run: node --check js/valve-assets.js && node --check js/valve-placement.js && node --check js/hand-occlusion.js && node --check js/hand-model-loader.js && node --check js/ar-hand.js && node --check js/gesture-control.js && node --check js/piping-engine.js && node --check js/hand-screen-map.js && node --check js/tracking-gate.js
       - name: World tracking and gesture integration contract
         run: node tests/ar-hand.test.cjs
       - name: Camera lifecycle, GPU resource cleanup and stale-asset regression
@@ -76,6 +78,8 @@ jobs:
 
       - name: Hand mask geometry and camera composition checks
         run: node tests/hand-occlusion.test.cjs
+      - name: Factory route variation and actual valve port alignment
+        run: node tests/factory-valve-variation.test.cjs
       - name: Authored valve GLB geometry contracts
         run: node tests/valve-assets.test.cjs
       - name: Existing piping model regression
