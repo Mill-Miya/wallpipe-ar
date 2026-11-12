@@ -22,6 +22,7 @@ on:
       - js/tracking-gate.js
       - tests/hand-screen-map.test.cjs
       - tests/ar-hand.test.cjs
+      - tests/ar-lifecycle.test.cjs
       - .github/workflows/ar-hand-qa.yml
   workflow_dispatch:
 permissions:
@@ -38,6 +39,8 @@ jobs:
         run: node --check js/valve-assets.js && node --check js/hand-occlusion.js && node --check js/hand-model-loader.js && node --check js/ar-hand.js && node --check js/gesture-control.js && node --check js/piping-engine.js && node --check js/hand-screen-map.js && node --check js/tracking-gate.js
       - name: World tracking and gesture integration contract
         run: node tests/ar-hand.test.cjs
+      - name: Camera lifecycle, GPU resource cleanup and stale-asset regression
+        run: node tests/ar-lifecycle.test.cjs
       - name: Video-screen calibration and SLAM stability
         run: node tests/hand-screen-map.test.cjs
       - name: Pinned MediaPipe hand model loader and CDN fallback
