@@ -9,6 +9,7 @@ on:
       - js/valve-placement.js
       - js/piping-engine.js
       - tests/factory-valve-variation.test.cjs
+      - tests/system-diversity.test.cjs
       - js/pipe-assets.js
       - js/ar-hand.js
       - ar-hand.html
@@ -36,6 +37,8 @@ jobs:
           node --check js/valve-placement.js
           node --check js/pipe-assets.js
           node --check js/ar-hand.js
+      - name: Water and HVAC procedural route diversity
+        run: node tests/system-diversity.test.cjs
       - name: Factory piping and valve assembly variety
         run: node tests/factory-valve-variation.test.cjs
       - name: Procedural layout topology tests
