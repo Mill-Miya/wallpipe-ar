@@ -10,7 +10,7 @@ function plan(network,scale=.00265){
  const adjacency=network.nodes.map(()=>[]);
  for(const e of network.edges){if(e.valveIndex>=0)continue;
   const a=network.nodes[e.a],b=network.nodes[e.b],l=len(a,b)*scale;
-  if(!(l>0))throw Error('Zero-length pipe edge '+e.id);
+  if(!(l>1e-8))continue; // coincident construction nodes: no visible pipe span
   const r=radius(e.diameter);
   adjacency[e.a].push({edgeId:e.id,neighbor:e.b,dir:vec(a,b),r,length:l});
   adjacency[e.b].push({edgeId:e.id,neighbor:e.a,dir:vec(b,a),r,length:l});
@@ -49,6 +49,7 @@ function plan(network,scale=.00265){
  const spans=[];
  for(const e of network.edges){if(e.valveIndex>=0)continue;
   const a=network.nodes[e.a],b=network.nodes[e.b],l=len(a,b)*scale;
+  if(!(l>1e-8))continue;
   let aTrim=trim.get(e.id+':'+e.a)||0,bTrim=trim.get(e.id+':'+e.b)||0;
   if(aTrim+bTrim>l*.86){const k=l*.86/(aTrim+bTrim);aTrim*=k;bTrim*=k;}
   const aa={x:a.x*scale,y:-a.y*scale,z:.06},bb={x:b.x*scale,y:-b.y*scale,z:.06};
