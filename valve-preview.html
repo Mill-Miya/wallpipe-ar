@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<meta name="theme-color" content="#f4f6f3"/>
+<title>バルブ造形確認｜WallPipe AR</title>
+<style>
+:root{font:15px/1.6 system-ui,'Hiragino Kaku Gothic ProN',Meiryo,sans-serif;color:#293c3e;background:#f3f5f1;--line:#bac6c4;--strong:#196777}*{box-sizing:border-box}body{margin:0;min-height:100dvh}button,input{font:inherit}header{height:70px;border-bottom:1px solid var(--line);background:#fff;display:flex;align-items:center;justify-content:space-between;gap:15px;padding:0 clamp(14px,3vw,34px)}header b{font-size:16px}header a{font-size:12px;color:var(--strong)}main{display:grid;grid-template-columns:minmax(0,1fr) 320px;min-height:calc(100dvh - 70px)}.scene{position:relative;min-height:600px;background:#dfe7e2}.scene canvas{display:block;width:100%;height:100%}.caption{position:absolute;bottom:14px;left:14px;font-size:11px;color:#345457;background:#f3f7f1ee;padding:6px 10px;pointer-events:none}.aside{border-left:1px solid var(--line);padding:26px 22px}.eyebrow{color:#537076;letter-spacing:.09em;font:11px ui-monospace,monospace}h1{font-size:23px;letter-spacing:-.03em;margin:10px 0 14px;line-height:1.4}p{font-size:13px;line-height:1.8;color:#5a6a6a;margin:0 0 19px}.kind{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:24px}.kind button{border:1px solid #94adac;background:#fff;color:#24484c;padding:10px 6px;min-height:46px;cursor:pointer}.kind button[aria-pressed=true]{background:#d7e7e2;border-color:#196777;font-weight:700}.kind button:focus-visible,header a:focus-visible,input:focus-visible{outline:3px solid #c77e29;outline-offset:2px}label{display:block;font-size:13px;font-weight:700;margin-bottom:7px}.range{display:flex;align-items:center;gap:12px}.range input{width:100%;accent-color:var(--strong)}output{min-width:46px;text-align:right;font:13px ui-monospace,monospace}.status{border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:12px 0;margin-top:20px;font-size:12px;color:#50666b;min-height:65px}.notes{margin-top:20px;font-size:11px;color:#667a7b;line-height:1.8}@media(max-width:780px){header{height:60px}main{display:flex;flex-direction:column}.scene{height:min(53dvh,520px);min-height:320px}.aside{border:0;border-top:1px solid var(--line);padding:18px}.kind{margin-bottom:18px}.notes{margin-top:12px}h1{font-size:20px;margin:5px 0 9px}.eyebrow{font-size:10px}}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script>
+</head>
+<body>
+<header><b>WallPipe AR <span style="font-size:12px;color:#617b7e;font-weight:400">/ モデル検証</span></b><a href="./ar-hand.html">AR画面へ戻る</a></header>
+<main><section class="scene" aria-label="バルブ3Dモデルの操作可能なプレビュー"><div class="caption">ドラッグ：回転 ／ ピンチ・ホイール：拡大縮小</div></section>
+<aside class="aside"><div class="eyebrow">VALVE MODELS / v0.9</div><h1>バルブの形状を確認</h1><p>今回作成したAR用の3Dバルブ模型です。形状の違いと開閉時のハンドル動作を確認できます。</p>
+<div class="kind" role="group" aria-label="バルブ種類"><button data-kind="ball" aria-pressed="true">ボール弁</button><button data-kind="gate" aria-pressed="false">仕切弁</button><button data-kind="butterfly" aria-pressed="false">バタフライ弁</button><button data-kind="control" aria-pressed="false">調節弁</button></div>
+<label for="opening">開度</label><div class="range"><input type="range" id="opening" min="0" max="100" value="100" step="1"/><output id="openingValue" for="opening">100%</output></div>
+<div id="status" class="status" role="status" aria-live="polite">モデルを読み込み中…</div><div class="notes">メーカー製CADモデルではなく、独自に設計した教育用の3D模型です。実物の詳細寸法・操作回転数・流量特性を再現するものではありません。</div></aside></main>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {loadValveModel} from './js/valve-assets.js';
+const holder=document.querySelector('.scene'),status=document.querySelector('#status'),range=document.querySelector('#opening'),value=document.querySelector('#openingValue');
+const scene=new THREE.Scene();scene.background=new THREE.Color('#dfe7e2');
+const camera=new THREE.PerspectiveCamera(39,1,.01,20);camera.position.set(.52,-.70,.62);
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:false,powerPreference:'low-power'});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.outputColorSpace=THREE.SRGBColorSpace;
+holder.prepend(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xf5f7f5,0x8d9b98,2.4));
+const key=new THREE.DirectionalLight(0xffffff,2.0);key.position.set(2,-1,3);scene.add(key);
+const fill=new THREE.DirectionalLight(0xf5f6ea,.95);fill.position.set(-2,1,1);scene.add(fill);
+const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(0,0,.11);controls.enableDamping=true;controls.minDistance=.35;controls.maxDistance=1.8;controls.update();
+let model=null,revision=0;
+function setOpening(){const opening=Number(range.value)/100;value.textContent=range.value+'%';if(!model)return;const closed=1-opening;
+ model.handle.rotation.z=['gate','control'].includes(model.type)?closed*Math.PI*3:closed*Math.PI*.5;
+ if(['gate','control'].includes(model.type))model.handle.position.z=model.handle.userData.pivotHeight+opening*.018;
+ if(model.disc)model.disc.rotation.z=opening*Math.PI*.5;
+}
+async function switchKind(type){
+ const v=++revision;status.textContent='3Dモデルを読み込み中…';
+ for(const btn of document.querySelectorAll('[data-kind]'))btn.setAttribute('aria-pressed',String(btn.dataset.kind===type));
+ try{const next=await loadValveModel(type);if(v!==revision)return;
+ if(model){scene.remove(model.root);model.root.traverse(o=>{if(o.isMesh){o.geometry.dispose();(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>m.dispose());}});}
+ model={...next,type};scene.add(next.root);setOpening();status.textContent='表示準備完了。ドラッグして立体形状を確認できます。';}
+ catch(e){if(v!==revision)return;status.textContent='モデルを読み込めませんでした。通信状況を確認してください。';console.error(e);}
+}
+for(const btn of document.querySelectorAll('[data-kind]'))btn.addEventListener('click',()=>switchKind(btn.dataset.kind));
+range.addEventListener('input',setOpening);
+function resize(){const w=holder.clientWidth,h=holder.clientHeight;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false);}
+new ResizeObserver(resize).observe(holder);resize();
+function render(){requestAnimationFrame(render);controls.update();renderer.render(scene,camera);}render();switchKind('ball');
+</script>
+</body></html>
