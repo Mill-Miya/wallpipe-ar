@@ -19,6 +19,8 @@ on:
       - js/piping-engine.js
       - js/hand-screen-map.js
       - js/hand-occlusion.js
+      - js/hand-depth-mask.js
+      - tests/hand-depth-mask.test.cjs
       - js/hand-model-loader.js
       - tests/hand-model-loader.test.cjs
       - tests/hand-occlusion.test.cjs
@@ -39,7 +41,7 @@ jobs:
         with:
           node-version: '22'
       - name: JavaScript syntax
-        run: node --check js/valve-assets.js && node --check js/valve-placement.js && node --check js/hand-occlusion.js && node --check js/hand-model-loader.js && node --check js/ar-hand.js && node --check js/gesture-control.js && node --check js/piping-engine.js && node --check js/hand-screen-map.js && node --check js/tracking-gate.js
+        run: node --check js/valve-assets.js && node --check js/valve-placement.js && node --check js/hand-occlusion.js && node --check js/hand-depth-mask.js && node --check js/hand-model-loader.js && node --check js/ar-hand.js && node --check js/gesture-control.js && node --check js/piping-engine.js && node --check js/hand-screen-map.js && node --check js/tracking-gate.js
       - name: World tracking and gesture integration contract
         run: node tests/ar-hand.test.cjs
       - name: Camera lifecycle, GPU resource cleanup and stale-asset regression
@@ -77,6 +79,8 @@ jobs:
           test "$wasm_ok" -eq 1
           curl -fsSIL --max-time 25 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task' >/dev/null
 
+      - name: Invisible hand depth mask (no live video redraw)
+        run: node tests/hand-depth-mask.test.cjs
       - name: Hand mask geometry and camera composition checks
         run: node tests/hand-occlusion.test.cjs
       - name: Water and HVAC procedural route diversity
