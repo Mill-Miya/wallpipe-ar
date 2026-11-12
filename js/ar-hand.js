@@ -117,8 +117,9 @@ function refreshFlow(){
  if(!network)return;
  let summary;
  try{summary=Engine.solveFlow(network,openings);}catch(e){state('error','流量計算に失敗しました。');console.error(e);return;}
- ui.summary.textContent=`通水系統：${summary.active} / ${network.terminals.length}（相対流量 ${summary.total.toFixed(2)}）`+(network.palette?' ／ 配色：'+network.palette:'');
  flowDisplay?.sync(summary);
+ const runningOutlets=flowDisplay?.outlets.filter(outlet=>outlet.group.visible).length??0;
+ ui.summary.textContent=`通水系統：${summary.active} / ${network.terminals.length}（相対流量 ${summary.total.toFixed(2)}）`+(mode==='water'?' ／ 吐水表示：'+runningOutlets+' / '+network.terminals.length+'口':'')+(network.palette?' ／ 配色：'+network.palette:'');
  for(const v of valves){const op=openings[v.index],shut=1-op;if(v.handle){v.handle.rotation.z=(v.type==='gate'||v.type==='control')?shut*Math.PI*3:shut*Math.PI*.5;if(v.type==='gate'||v.type==='control')v.handle.position.z=v.handle.userData.pivotHeight+op*.018;}if(v.disc)v.disc.rotation.z=op*Math.PI*.5;}
 }
 function setOpening(index,value){if(!Number.isInteger(index)||index<0||index>=openings.length||!Number.isFinite(value))return;openings[index]=clamp(Math.round(value*100)/100,0,1);refreshFlow();if(index===selected)syncControls();}
