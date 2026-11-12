@@ -12,6 +12,8 @@ on:
       - tests/system-diversity.test.cjs
       - js/pipe-assets.js
       - js/ar-hand.js
+      - js/flow-visuals.js
+      - tests/flow-visuals.test.cjs
       - ar-hand.html
       - pipe-preview.html
       - tests/pipe-layout.test.cjs
@@ -36,6 +38,7 @@ jobs:
           node --check js/pipe-layout.js
           node --check js/valve-placement.js
           node --check js/pipe-assets.js
+          node --check js/flow-visuals.js
           node --check js/ar-hand.js
       - name: Water and HVAC procedural route diversity
         run: node tests/system-diversity.test.cjs
@@ -45,6 +48,8 @@ jobs:
         run: node tests/pipe-layout.test.cjs
       - name: GLB mesh kit and AR integration
         run: node tests/pipe-kit.test.cjs
+      - name: Per-fixture water animation and pipe flow visuals
+        run: node tests/flow-visuals.test.cjs
       - name: Existing fluid network regression
         run: node tests/piping.test.cjs
       - name: Existing hand/valve integration regression
