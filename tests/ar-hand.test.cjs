@@ -30,10 +30,12 @@ assert(page.includes('width:100vw!important')&&page.includes('height:100dvh!impo
 
 // Regression: iPhone landscape/portrait image alignment, smaller initial model,
  // and visible diagnostics are required before claiming AR hand usability.
-failIfMissing(['id="handHud"','id="placeScale"','id="placeDistance"','value="2.2"','value="0.95"'],page,'AR viewport and hand visibility');
-failIfMissing(['handStatus','ownedVideo.srcObject=sourceStream','anchor.scale.setScalar(Number(ui.scale.value))','ui.scale.disabled=true','lastInference=now'],app,'Hand feed and placement scale');
-assert(page.includes('v0.9.3'),'AR hand occlusion release marker must match');
+failIfMissing(['id="handHud"','id="placeScale"','id="placeDistance"','value="1.3"','value="1.40"'],page,'AR viewport and hand visibility');
+failIfMissing(['handStatus','ownedVideo.srcObject=sourceStream','anchor.scale.setScalar(Number(ui.scale.value))','ui.scale.disabled=false','lastInference=now'],app,'Hand feed and placement scale');
+assert(page.includes('v0.9.4'),'AR exploratory layout release marker must match');
 failIfMissing(['id="handOcclusion"','id="handOcclusionToggle"','js/hand-occlusion.js'],page,'Hand foreground overlay UI');
+failIfMissing(['js/hand-model-loader.js','id="presetExplore"','id="presetOverview"','id="handFailureDetails"'],page,'Hand loader and AR exploration controls');
+failIfMissing(['HandLoader.load','preferGPU:false','ui.handFailureDetails.textContent','selectViewPreset','anchor.scale.setScalar(Number(ui.scale.value))'],app,'Pinned hand SDK and spatial exploration integration');
 failIfMissing(['HandOcclusion.render','paintHandOcclusion(points)','clearHandOcclusion()'],app,'Hand foreground integration');
 failIfMissing(['goodFrames=10','badFrames=3',"status==='NORMAL'"],trackingGate,'SLAM hysteresis');
 // World placement must be user-triggered: attaching a video alone must not auto-anchor.
