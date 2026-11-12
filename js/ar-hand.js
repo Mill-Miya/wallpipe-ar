@@ -94,7 +94,7 @@ function buildNetwork(){
   const mount=new THREE.Group();mount.name='valve-mount-'+i;
   mount.position.copy(p);mount.rotation.z=v.axis==='h'?-Math.PI/2:0;mount.scale.setScalar(.68);
   anchor.add(mount);
-  const label=new THREE.Group();label.position.set(p.x,p.y,p.z+.19);anchor.add(label);
+  const label=new THREE.Group();label.position.set(p.x,p.y,p.z);anchor.add(label);
   addValveLabel(label,i);
   const entry={index:i,type,marker:new THREE.Vector3(p.x,p.y,p.z+.16),mount,handle:null,disc:null};
   valves.push(entry);
