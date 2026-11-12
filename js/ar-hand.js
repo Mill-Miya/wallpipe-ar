@@ -95,23 +95,34 @@ function updateQuickAction(){
  }
  ui.quick.hidden=true;
 }
-function setSelection(index){selected=clamp(index,0,2);ui.select.value=String(selected);syncControls();}
-function syncControls(){ui.opening.value=String(Math.round(openings[selected]*100));ui.openingOut.textContent=Math.round(openings[selected]*100)+'%';ui.toggle.textContent=openings[selected]>.5?'選択したバルブを閉める':'選択したバルブを開く';}
+const valveNames={ball:'ボール弁',gate:'仕切弁',butterfly:'バタフライ弁',control:'調節弁'};
+function updateValveOptions(){
+ ui.select.replaceChildren(...network.valves.map((v,index)=>{
+  const option=document.createElement('option');
+  option.value=String(index);
+  const type=ValveMount.kindForValve(network,index);
+  option.textContent='V-'+String(index+1).padStart(2,'0')+' '+valveNames[type];
+  return option;
+ }));
+ ui.select.value=String(selected);
+}
+function setSelection(index){selected=clamp(index,0,Math.max(0,openings.length-1));ui.select.value=String(selected);syncControls();}
+function syncControls(){const current=openings[selected]??1;ui.opening.value=String(Math.round(current*100));ui.openingOut.textContent=Math.round(current*100)+'%';ui.toggle.textContent=current>.5?'選択したバルブを閉める':'選択したバルブを開く';}
 function refreshFlow(){
  if(!network)return;
  let summary;
  try{summary=Engine.solveFlow(network,openings);}catch(e){state('error','流量計算に失敗しました。');console.error(e);return;}
- ui.summary.textContent=`通水系統：${summary.active} / ${network.terminals.length}（相対流量 ${summary.total.toFixed(2)}）`;
+ ui.summary.textContent=`通水系統：${summary.active} / ${network.terminals.length}（相対流量 ${summary.total.toFixed(2)}）`+(network.palette?' ／ 配色：'+network.palette:'');
  for(const v of valves){const op=openings[v.index],shut=1-op;if(v.handle){v.handle.rotation.z=(v.type==='gate'||v.type==='control')?shut*Math.PI*3:shut*Math.PI*.5;if(v.type==='gate'||v.type==='control')v.handle.position.z=v.handle.userData.pivotHeight+op*.018;}if(v.disc)v.disc.rotation.z=op*Math.PI*.5;}
 }
-function setOpening(index,value){if(!Number.isFinite(value))return;openings[index]=clamp(Math.round(value*100)/100,0,1);refreshFlow();if(index===selected)syncControls();}
+function setOpening(index,value){if(!Number.isInteger(index)||index<0||index>=openings.length||!Number.isFinite(value))return;openings[index]=clamp(Math.round(value*100)/100,0,1);refreshFlow();if(index===selected)syncControls();}
 function addRod(parent,a,b,r,mat){const d=new THREE.Vector3().subVectors(b,a),len=d.length();if(len<.0001)return null;const obj=new THREE.Mesh(new THREE.CylinderGeometry(r,r,len,12),mat);obj.position.copy(a).add(b).multiplyScalar(.5);obj.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());parent.add(obj);return obj;}
 function point(n,z=.06){return new THREE.Vector3(n.x*.00265,-n.y*.00265,z);}
 function buildNetwork(){
  const revision=++valveRevision;
  delete ui.preview.dataset.alert;
  const seed=(Math.random()*4294967295)>>>0;
- network=Engine.makeNetwork({mode,surface:'wall',seed});openings=[1,1,1];Gestures.reset(gesture);selected=0;
+ network=Engine.makeNetwork({mode,surface:'wall',seed});openings=network.valves.map(()=>1);Gestures.reset(gesture);selected=0;updateValveOptions();
  if(!anchor){syncControls();return;}
  const previousPipe=anchor.userData.pipeAssetRoot;
  if(previousPipe){anchor.remove(previousPipe);for(const material of anchor.userData.pipeAssetMaterials||[])material.dispose();}
