@@ -1,0 +1,42 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<script src="../js/piping-engine.js"></script><script src="../js/flow-visuals.js"></script>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js"}}</script>
+</head><body style="margin:0;background:#12232a">
+<canvas id="stage" width="720" height="480" style="display:block;width:720px;height:480px"></canvas>
+<script type="module">
+import * as THREE from 'three';
+try{
+ const renderer=new THREE.WebGLRenderer({canvas:document.getElementById('stage'),antialias:false,preserveDrawingBuffer:true});
+ renderer.setPixelRatio(1);renderer.setSize(720,480,false);renderer.setClearColor(0x12232a,1);
+ const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(55,1.5,.05,20);
+ camera.position.set(0,0,2.2);camera.lookAt(0,0,0);
+ const network=window.WallPipeEngine.makeNetwork({mode:'water',surface:'wall',seed:73});
+ const allStates=network.valves.map(()=>1);
+ const baseline=window.WallPipeEngine.solveFlow(network,allStates).terminalFlows;
+ const visuals=window.WallPipeFlowVisuals.create({
+  THREE,network,parent:scene,mode:'water',baseline,
+  point:(n,z=.06)=>new THREE.Vector3(n.x*.00265,-n.y*.00265,z)
+ });
+ for(const marker of visuals.barMarkers)marker.mesh.visible=false;
+ const coords=visuals.outlets.map(o=>{
+  o.column.updateWorldMatrix(true,false);
+  return o.column.getWorldPosition(new THREE.Vector3()).project(camera);
+ });
+ const pixel=coord=>{
+  const x=Math.max(0,Math.min(719,Math.round((coord.x+1)*360)));
+  const y=Math.max(0,Math.min(479,Math.round((coord.y+1)*240)));
+  const gl=renderer.getContext(),buffer=new Uint8Array(4);
+  gl.readPixels(x,y,1,1,gl.RGBA,gl.UNSIGNED_BYTE,buffer);return [...buffer];
+ };
+ function frame(openings){
+  const summary=window.WallPipeEngine.solveFlow(network,openings);
+  visuals.sync(summary);renderer.render(scene,camera);
+  return {colors:coords.map(pixel),visible:visuals.outlets.map(o=>o.group.visible),flows:summary.terminalFlows};
+ }
+ const full=frame(allStates);
+ const closed=allStates.map((_,i)=>frame(allStates.map((_,j)=>i===j?0:1)));
+ const half=frame([.25,1,1]);
+ const none=frame([0,0,0]);
+ window.__flowFixture={full,closed,half,none,ids:visuals.descriptors.map(x=>x.nodeId)};
+}catch(e){window.__flowFixtureError=String(e.stack||e);console.error(e);}
+</script></body></html>
