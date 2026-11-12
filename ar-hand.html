@@ -76,6 +76,7 @@ import * as THREE from 'three';
 window.THREE=THREE;
 try {
  window.WallPipeValveAssets=await import('./js/valve-assets.js');
+ window.WallPipePipeAssets=await import('./js/pipe-assets.js');
  await import('./js/ar-hand.js');
 } catch(err) { document.getElementById('statusText').textContent='ARアプリを起動できません。ライブラリの読み込みと通信状況を確認してください。';document.getElementById('status').dataset.status='error';console.error(err); }
 </script>
