@@ -96,7 +96,7 @@ async function build(){
   active=bundle;scene.add(bundle.root);
   const t=bundle.stats;
   $('status').textContent=valveCount===n.valves.length?'読み込み完了。配管とバルブを色・接続・側面から確認できます。':'配管は表示しましたが、一部のバルブを読み込めませんでした。';
-  $('metrics').textContent='直管：'+t.spans+' / 継手：'+t.fittings+'\nエルボ：'+t.elbows+' / T字：'+t.tees+'\nレジューサ：'+t.reducers+' / 支持具：'+t.supports+'\nバルブ：'+valveCount+' / '+n.valves.length;
+  $('metrics').textContent='直管：'+t.spans+' / 継手：'+t.fittings+'\nエルボ：'+t.elbows+' / T字：'+t.tees+'\nレジューサ：'+t.reducers+' / 支持具：'+t.supports+'\nバルブ：'+valveCount+' / '+n.valves.length+'\n構成：'+n.scheme+'\n弁種：'+n.valves.map(v=>({gate:'仕切弁',ball:'ボール弁',butterfly:'バタフライ弁',control:'調節弁'})[v.type]||'一般弁').join(' / ');
  }catch(e){console.error(e);$('status').textContent='配管モデルを読み込めませんでした。通信とページの再読み込みを確認してください。';}
 }
 for(const b of document.querySelectorAll('[data-mode]'))b.addEventListener('click',()=>{
