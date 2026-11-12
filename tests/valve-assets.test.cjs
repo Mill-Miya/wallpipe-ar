@@ -18,4 +18,8 @@ for(const kind of ['ball','gate','butterfly','control']){
  assert(buffer.length>18000&&buffer.length<250000,kind+' GLB size');
  console.log('PASS '+kind+': '+gltf.meshes.length+' meshes, '+buffer.length+' bytes');
 }
+const preview=fs.readFileSync(path.join(base,'valve-preview.html'),'utf8');
+assert(preview.includes('loadValveModel'), 'Preview must use the same GLB loader as AR');
+assert(preview.includes('OrbitControls'), 'Preview must allow 3D inspection');
+assert(preview.includes('id="opening"'), 'Preview must expose physical opening control');
 console.log('PASS: four authored valve assemblies');
