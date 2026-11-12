@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="WallPipe ARの新しい配管と継手の3Dモデルを回転・拡大して確認するページ。">
+<title>配管の3Dモデル｜WallPipe AR</title>
+<style>
+:root{font-family:system-ui,-apple-system,"Hiragino Kaku Gothic ProN",Meiryo,sans-serif;color:#22383b;background:#f4f5f1}
+*{box-sizing:border-box}body{margin:0}button{font:inherit;cursor:pointer}a{color:#236873;text-underline-offset:4px}
+header{padding:17px clamp(16px,4vw,48px);display:flex;justify-content:space-between;align-items:center;gap:14px;border-bottom:1px solid #cbd4d0}
+h1{font-size:19px;letter-spacing:-.025em;margin:0}.sub{font-size:12px;color:#617477;margin-top:4px}
+main{display:grid;grid-template-columns:minmax(0,1fr) 285px;min-height:calc(100dvh - 75px)}
+#stage{background:#dde4df;min-height:400px;position:relative;overflow:hidden}#canvas{width:100%;height:100%;display:block;touch-action:none}
+.note{position:absolute;left:16px;top:15px;right:16px;max-width:480px;background:#fafbf7e9;border-left:3px solid #55828a;padding:9px 12px;font-size:12px;line-height:1.6}
+#status{position:absolute;left:16px;bottom:16px;max-width:calc(100% - 32px);background:#fafbf7e9;padding:8px 12px;font-size:12px}
+aside{border-left:1px solid #cbd4d0;padding:24px 20px;background:#f7f8f4}h2{font-size:15px;margin:0 0 12px}
+.btns{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}button{min-height:43px;background:white;border:1px solid #b3c2bd;color:#264d52;border-radius:2px;padding:8px 9px;font-size:12px}
+button[aria-pressed=true]{background:#276875;color:white;border-color:#276875}button:hover{border-color:#276875}
+button:focus-visible,a:focus-visible{outline:3px solid #d4a45b;outline-offset:3px}
+.wide{width:100%;margin-top:12px}.metrics{font:12px/1.85 ui-monospace,Consolas,monospace;color:#455c60;margin-top:20px;border-top:1px solid #cbd4d0;padding-top:15px}
+aside p{font-size:12px;line-height:1.75;color:#5b7073}nav a{font-size:12px}
+@media(max-width:800px){main{display:block}#stage{height:58dvh;min-height:340px}aside{border-left:0;border-top:1px solid #cbd4d0;padding:18px}header{padding:13px 15px}.note{font-size:11px}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script>
+</head><body>
+<header><div><h1>WallPipe AR｜配管モデル</h1><div class="sub">中空管・曲げ管・分岐継手の3D確認</div></div><nav><a href="./index.html">ARへ戻る</a></nav></header>
+<main><div id="stage"><canvas id="canvas" aria-label="配管を回転できる3Dプレビュー"></canvas>
+<div class="note">ドラッグ：回転　ピンチ／ホイール：拡大縮小。これは仮想設備の教材用3Dモデルで、施工図ではありません。</div>
+<div id="status" role="status" aria-live="polite">3Dモデルを読み込み中…</div></div>
+<aside><h2>設備を切り替える</h2><div class="btns" role="group" aria-label="配管の種類">
+<button data-mode="water" aria-pressed="true">給水</button>
+<button data-mode="air" aria-pressed="false">空調</button>
+<button data-mode="plant" aria-pressed="false">工場</button></div>
+<button id="regenerate" class="wide">別の配管を生成</button>
+<button id="resetView" class="wide">視点を正面に戻す</button>
+<div id="metrics" class="metrics" role="status">接続関係を解析中…</div>
+<p>管は中空の独立メッシュ。曲がり角は滑らかなエルボ、三方分岐は内部の流路が連続した鋳物形状として再現しています。バルブの外観・流体計算は変更していません。</p>
+<p><a href="./ar-hand.html">空間固定ARで見る</a></p>
+</aside></main>
+<script src="./js/piping-engine.js"></script>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {createPipeAssembly} from './js/pipe-assets.js';
+const $=id=>document.getElementById(id),canvas=$('canvas'),stage=$('stage');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));renderer.setClearColor(0xdde4df);
+renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;
+const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(42,1,.03,40);
+scene.add(new THREE.HemisphereLight(0xffffff,0x52656a,2.35));
+const sun=new THREE.DirectionalLight(0xffffff,2.5);sun.position.set(-1.5,2,3.5);scene.add(sun);
+const controls=new OrbitControls(camera,canvas);controls.enableDamping=true;controls.dampingFactor=.08;controls.minDistance=.65;controls.maxDistance=6;
+const resetCamera=()=>{camera.position.set(.3,.15,2.75);controls.target.set(0,0,.06);controls.update();};
+resetCamera();let mode='water',seed=15,active=null,seq=0;
+async function build(){
+ const token=++seq,n=window.WallPipeEngine.makeNetwork({mode,surface:'wall',seed});
+ $('status').textContent='配管を生成中…';
+ try{
+  const bundle=await createPipeAssembly(n,{mode});
+  if(token!==seq){for(const m of bundle.materials)m.dispose();return;}
+  if(active){scene.remove(active.root);for(const m of active.materials)m.dispose();}
+  active=bundle;scene.add(bundle.root);
+  const t=bundle.stats;
+  $('status').textContent='読み込み完了。視点を動かして接続部を確認できます。';
+  $('metrics').textContent='直管：'+t.spans+' / 継手：'+t.fittings+'\nエルボ：'+t.elbows+' / T字：'+t.tees+'\nレジューサ：'+t.reducers+' / 支持具：'+t.supports;
+ }catch(e){console.error(e);$('status').textContent='配管モデルを読み込めませんでした。通信とページの再読み込みを確認してください。';}
+}
+for(const b of document.querySelectorAll('[data-mode]'))b.addEventListener('click',()=>{
+ mode=b.dataset.mode;for(const n of document.querySelectorAll('[data-mode]'))n.setAttribute('aria-pressed',String(n===b));seed++;build();
+});
+$('regenerate').addEventListener('click',()=>{seed=(seed+1103515245)>>>0;build();});
+$('resetView').addEventListener('click',resetCamera);
+const resize=()=>{const w=stage.clientWidth,h=stage.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();};
+new ResizeObserver(resize).observe(stage);resize();
+function frame(){requestAnimationFrame(frame);controls.update();renderer.render(scene,camera);}frame();build();
+</script></body></html>
