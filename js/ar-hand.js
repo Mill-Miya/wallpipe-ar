@@ -3,14 +3,14 @@
  * Image-space hand/valve interaction is approximate, not 3D collision detection.
  */
 const THREE=window.THREE, Engine=window.WallPipeEngine, Gestures=window.WallPipeGesture;
-const HandMap=window.WallPipeHandScreenMap, TrackingGate=window.WallPipeTrackingGate, ValveAssets=window.WallPipeValveAssets,PipeAssets=window.WallPipePipeAssets,HandOcclusion=window.WallPipeHandOcclusion, HandLoader=window.WallPipeHandModelLoader,ValveMount=window.WallPipeValvePlacement;
-if(!THREE||!Engine||!Gestures||!HandMap||!TrackingGate||!ValveAssets||!PipeAssets||!HandOcclusion||!HandLoader||!ValveMount)throw new Error('Missing WallPipe dependencies or mesh loaders');
+const HandMap=window.WallPipeHandScreenMap, TrackingGate=window.WallPipeTrackingGate, ValveAssets=window.WallPipeValveAssets,PipeAssets=window.WallPipePipeAssets,HandDepthMask=window.WallPipeHandDepthMask, HandLoader=window.WallPipeHandModelLoader,ValveMount=window.WallPipeValvePlacement;
+if(!THREE||!Engine||!Gestures||!HandMap||!TrackingGate||!ValveAssets||!PipeAssets||!HandDepthMask||!HandLoader||!ValveMount)throw new Error('Missing WallPipe dependencies or mesh loaders');
 const $=id=>document.getElementById(id);
 const ui={stage:$('stage'),canvas:$('arCanvas'),start:$('start'),place:$('place'),reset:$('reset'),panel:$('panel'),collapse:$('collapse'),preview:$('preview'),status:$('status'),statusText:$('statusText'),info:$('info'),hand:$('handState'),pointer:$('pointer'),opening:$('opening'),openingOut:$('openingOut'),select:$('valveSelect'),toggle:$('toggle'),summary:$('flowSummary'),quick:$('quickAction'),alignment:$('handTransform'),handRetry:$('handRetry'),rescan:$('rescan'),trackingDetails:$('trackingDetails'),handHud:$('handHud'),scale:$('placeScale'),scaleOut:$('placeScaleOut'),distance:$('placeDistance'),distanceOut:$('placeDistanceOut'),height:$('placeHeight'),heightOut:$('placeHeightOut'),reticle:$('targetReticle'),occlusion:$('handOcclusion'),occlusionToggle:$('handOcclusionToggle'),presetExplore:$('presetExplore'),presetOverview:$('presetOverview'),handFailureDetails:$('handFailureDetails')};
 const clamp=(v,lo,hi)=>Math.min(hi,Math.max(lo,v));
 let started=false,scene=null,camera=null,anchor=null,video=null,ownedVideo=null,tracking=false,lastTracking='',lastReason='';
 let mode='water',network=null,openings=[1,1,1],selected=0,modelReady=false,landmarker=null,loadingHand=false;
-let valves=[],flowMarkers=[],gesture=Gestures.createState(),lastInference=0,lastMessage='',handInitFailed=false,lastVideoTime=-1,lastHandsSeen=0,valveRevision=0,occlusionFault=false,handGeneration=0,handTimer=0,handSampleDelay=230,slowFrames=0,fatalError=false,trackingSlow=false;
+let valves=[],flowMarkers=[],gesture=Gestures.createState(),lastInference=0,lastMessage='',handInitFailed=false,lastVideoTime=-1,lastHandsSeen=0,valveRevision=0,occlusionFault=false,handDepthMask=null,lastMaskUpdate=0,handGeneration=0,handTimer=0,handSampleDelay=230,slowFrames=0,fatalError=false,trackingSlow=false;
 const trackingGate=TrackingGate.createState();
 const colorByMode={water:0x2b8ea1,air:0x368d74,plant:0xb37a38};
 function state(status,message){if(ui.status.dataset.status!==status||ui.statusText.textContent!==message){ui.status.dataset.status=status;ui.statusText.textContent=message;}}
@@ -23,17 +23,21 @@ function failAR(message,error){
 }
 function info(message){if(message!==lastMessage){ui.info.textContent=message;lastMessage=message;}}
 function handStatus(kind,message){if(ui.handHud.dataset.state!==kind||ui.handHud.textContent!==message){ui.handHud.dataset.state=kind;ui.handHud.textContent=message;}}
-function clearHandOcclusion(){HandOcclusion.clear(ui.occlusion);}
+function clearHandOcclusion(){handDepthMask?.clear();lastMaskUpdate=0;}
+function disposeHandOcclusion(){
+ clearHandOcclusion();
+ handDepthMask?.dispose();
+ handDepthMask=null;
+}
 function paintHandOcclusion(points){
- if(!ui.occlusionToggle.checked||occlusionFault){clearHandOcclusion();return;}
+ if(!ui.occlusionToggle.checked||occlusionFault||!handDepthMask){clearHandOcclusion();return;}
  try{
-  HandOcclusion.render(ui.occlusion,video,points,{
-   mode:ui.alignment.value,pixelRatio:Math.min(window.devicePixelRatio||1,1.25)
-  });
+  if(handDepthMask.update(points,ui.canvas.getBoundingClientRect()))lastMaskUpdate=performance.now();
+  else clearHandOcclusion();
  }catch(err){
   occlusionFault=true;ui.occlusionToggle.checked=false;clearHandOcclusion();
-  ui.hand.textContent='手の遮蔽表示を無効化しました。ジェスチャー操作は利用できます。';
-  console.warn('Hand foreground rendering disabled',err);
+  ui.hand.textContent='手の3D遮蔽を無効化しました。ジェスチャー操作は利用できます。';
+  console.warn('Hand depth-only mask disabled',err);
  }
 }
 function releaseValveInstance(root){
@@ -348,6 +352,14 @@ function pipePipelineModule(){return {
   modelReady=false;tracking=false;fatalError=false;trackingSlow=false;
   trackingGate.good=0;trackingGate.bad=0;trackingGate.stable=false;
   const xrscene=window.XR8.Threejs.xrScene();scene=xrscene.scene;camera=xrscene.camera;
+  disposeHandOcclusion();
+  try{
+   handDepthMask=HandDepthMask.create({THREE,camera,canvas:ui.occlusion});
+   occlusionFault=false;
+  }catch(err){
+   console.warn('Depth mask unavailable; gesture control remains enabled',err);
+   ui.occlusionToggle.checked=false;occlusionFault=true;
+  }
   scene.add(new THREE.HemisphereLight(0xf3fffc,0x49605f,2.2));
   const light=new THREE.DirectionalLight(0xffffff,1.5);light.position.set(-1,2,3);scene.add(light);
   anchor=new THREE.Group();anchor.name='wallpipe-fixed-world-anchor';anchor.visible=false;scene.add(anchor);
@@ -364,7 +376,7 @@ function pipePipelineModule(){return {
   if(video)scheduleHandSampling();
   if(modelReady&&!landmarker)initializeHandTracking();
  },
- onDetach:()=>{stopHandSampling();handGeneration++;valveRevision++;try{landmarker?.close?.();}catch{}landmarker=null;clearHandOcclusion();if(ownedVideo){ownedVideo.pause();ownedVideo.srcObject=null;ownedVideo=null;}video=null;tracking=false;TrackingGate.update(trackingGate,'LIMITED',10,1);releaseAnchorResources();resetPlacement();showHandPoint(null,'');Gestures.reset(gesture);fatalError=true;state('error','ARのカメラ接続が終了しました。再起動してください。');updateQuickAction();ui.hand.textContent='ARが停止しました。再起動して配管を配置し直してください。';},
+ onDetach:()=>{stopHandSampling();disposeHandOcclusion();handGeneration++;valveRevision++;try{landmarker?.close?.();}catch{}landmarker=null;clearHandOcclusion();if(ownedVideo){ownedVideo.pause();ownedVideo.srcObject=null;ownedVideo=null;}video=null;tracking=false;TrackingGate.update(trackingGate,'LIMITED',10,1);releaseAnchorResources();resetPlacement();showHandPoint(null,'');Gestures.reset(gesture);fatalError=true;state('error','ARのカメラ接続が終了しました。再起動してください。');updateQuickAction();ui.hand.textContent='ARが停止しました。再起動して配管を配置し直してください。';},
  onUpdate:({processCpuResult})=>{
   const reality=processCpuResult?.reality;
   const status=reality?.trackingStatus||'INITIALIZING';
@@ -379,7 +391,7 @@ function pipePipelineModule(){return {
    else{state('loading',status==='NORMAL'?'位置を安定化しています…':'追跡が不安定です。壁だけでなく模様のある床や家具もゆっくり映してください。');ui.place.disabled=true;}
    updateQuickAction();
   }
-  if(tracking){animateFlow();}else{showHandPoint(null,'');clearHandOcclusion();Gestures.reset(gesture);if(modelReady)handStatus('idle','手認識：空間追跡の復帰待ち');}
+  if(tracking){animateFlow();if(lastMaskUpdate&&performance.now()-lastMaskUpdate>750)clearHandOcclusion();}else{showHandPoint(null,'');clearHandOcclusion();Gestures.reset(gesture);if(modelReady)handStatus('idle','手認識：空間追跡の復帰待ち');}
  },
  onCameraStatusChange:({status})=>{
   if(status==='failed')failAR('カメラの起動に失敗しました。Safariのカメラ権限を確認し、ARを再起動してください。');
@@ -417,7 +429,7 @@ function selectViewPreset(kind){
  if(modelReady){info('観察方法を変更する場合は、一度「配置を解除」してください。');return;}
  const nearby=kind==='explore';
  ui.distance.value=nearby?'1.3':'2.2';
- ui.scale.value=nearby?'1.4':'0.95';
+ ui.scale.value=nearby?'1.65':'0.95';
  ui.distanceOut.textContent=Number(ui.distance.value).toFixed(1)+'m';
  ui.scaleOut.textContent=Math.round(Number(ui.scale.value)*100)+'%';
  ui.presetExplore.setAttribute('aria-pressed',String(nearby));
@@ -437,7 +449,7 @@ ui.rescan.addEventListener('click',()=>{
   ui.trackingDetails.textContent='追跡を再初期化中。模様のある場所をゆっくり映してください。';
   state('loading','空間認識をやり直しています。');
 });
-ui.occlusionToggle.addEventListener('change',()=>{occlusionFault=false;if(!ui.occlusionToggle.checked)clearHandOcclusion();});
+ui.occlusionToggle.addEventListener('change',()=>{if(!ui.occlusionToggle.checked)clearHandOcclusion();});
 window.addEventListener('resize',clearHandOcclusion);
 ui.handRetry.addEventListener('click',()=>{if(video&&!loadingHand){initializeHandTracking();}else ui.hand.textContent='先にARを開始し、配管を配置してください。';});
 document.addEventListener('visibilitychange',()=>{Gestures.reset(gesture);clearHandOcclusion();showHandPoint(null,'');lastInference=0;if(document.hidden&&started)ui.hand.textContent='アプリは一時停止中です。';else if(!document.hidden&&started)ui.hand.textContent=handInitFailed?'手認識を再試行するか、タッチで操作してください。':landmarker?'手認識が有効です。':'配管を配置すると手認識を準備します。';});
