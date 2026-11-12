@@ -28,7 +28,7 @@ jobs:
       - name: Install browser test runtime
         run: |
           npm install --no-save --no-audit --no-fund playwright@1.56.1
-          npx playwright install --with-deps chromium
+          PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=1 npx playwright install chromium --only-shell
       - name: Run local preview in real Chromium with WebGL
         run: |
           python3 -m http.server 8765 --bind 127.0.0.1 > /tmp/wallpipe-server.log 2>&1 &
