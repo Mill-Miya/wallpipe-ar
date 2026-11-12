@@ -27,7 +27,7 @@ for(const mode of modes)for(const surface of surfaces){
     assert.equal(o.blocked,flags===0);
     assert(o.total>=0&&Number.isFinite(o.total));
     assert(Math.abs(o.total-o.terminalFlows.reduce((t,v)=>t+v,0))<1e-6);
-    for(let i=0;i<3;i++){
+    for(let i=0;i<a.valves.length;i++){
        if(!opens[i])assert.equal(o.terminalFlows[i],0,'Closed valve must isolate its own branch');
        else assert(o.terminalFlows[i]>0);
     }
