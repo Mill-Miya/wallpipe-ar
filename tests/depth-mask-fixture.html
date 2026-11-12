@@ -1,0 +1,39 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<script src="../js/hand-depth-mask.js"></script>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js"}}</script></head><body style="margin:0">
+<canvas id="viewport" width="360" height="240" style="width:360px;height:240px"></canvas>
+<canvas id="mask" hidden></canvas>
+<script type="module">
+import * as THREE from 'three';
+try{
+ const canvas=document.getElementById('viewport'),maskCanvas=document.getElementById('mask');
+ const renderer=new THREE.WebGLRenderer({canvas,alpha:false,antialias:false,preserveDrawingBuffer:true});
+ renderer.setPixelRatio(1);renderer.setSize(360,240,false);renderer.setClearColor(0x112233,1);
+ const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(60,360/240,.05,15);
+ scene.add(camera);
+ const block=new THREE.Mesh(new THREE.PlaneGeometry(7,7),new THREE.MeshBasicMaterial({color:0xcc5522,side:THREE.DoubleSide}));
+ block.position.z=-2;scene.add(block);
+ const depth=window.WallPipeHandDepthMask.create({THREE,camera,canvas:maskCanvas});
+ const points=[
+ [180,205],[140,165],[133,150],[125,141],[117,133],
+ [156,130],[155,106],[152,81],[151,57],
+ [180,125],[180,98],[180,75],[180,50],
+ [200,132],[201,108],[205,88],[209,73],
+ [222,146],[234,125],[245,110],[251,95]
+ ].map(([x,y])=>({x,y}));
+ const sample=(x,y)=>{
+  const gl=renderer.getContext(),buf=new Uint8Array(4);
+  gl.readPixels(x,239-y,1,1,gl.RGBA,gl.UNSIGNED_BYTE,buf);
+  return Array.from(buf);
+ };
+ renderer.render(scene,camera);
+ const noMask=sample(180,159),outsideNoMask=sample(30,119);
+ depth.update(points,{left:0,top:0,width:360,height:240});
+ renderer.render(scene,camera);
+ const masked=sample(180,159),outsideMasked=sample(30,119);
+ depth.clear();renderer.render(scene,camera);
+ const restored=sample(180,159);
+ depth.dispose();
+ window.__depthMaskFixture={noMask,masked,restored,outsideNoMask,outsideMasked,canvasWidth:canvas.width};
+}catch(error){window.__depthMaskFixtureError=String(error.stack||error);console.error(error);}
+</script></body></html>
