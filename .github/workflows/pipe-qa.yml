@@ -12,6 +12,9 @@ on:
       - pipe-preview.html
       - tests/pipe-layout.test.cjs
       - tests/pipe-kit.test.cjs
+      - tests/ar-hand.test.cjs
+      - tests/ar-lifecycle.test.cjs
+      - tests/gesture.test.cjs
       - .github/workflows/pipe-qa.yml
   workflow_dispatch:
 permissions:
@@ -37,3 +40,5 @@ jobs:
         run: node tests/piping.test.cjs
       - name: Existing hand/valve integration regression
         run: node tests/ar-hand.test.cjs
+      - name: AR resource cleanup and hand gesture controls
+        run: node tests/ar-lifecycle.test.cjs && node tests/gesture.test.cjs
