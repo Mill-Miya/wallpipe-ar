@@ -19,7 +19,13 @@ assert(!app.includes("onAttach:({video:sourceVideo})=>{video=sourceVideo||null;i
 failIfMissing(['Math.max(rect.width/w,rect.height/h)','cw90','ccw90','mirror'],screenMap,'Cover crop and orientation');
 failIfMissing(['@8thwall/xrextras@1','id="rescan"','id="placeDistance"','id="placeHeight"','id="targetReticle"','arCanvas'],page,'XR camera recovery and placement');
 failIfMissing(['XRExtras.FullWindowCanvas.pipelineModule','ui.rescan.addEventListener','anchor.position.y+=Number(ui.height.value)','Number(ui.distance.value)','ui.reticle.classList.add','ui.distance.disabled=true'],app,'World-space placement controls');
-failIfMissing(["type==='butterfly'","type==='ball'","type==='gate'","type==='control'","TorusGeometry","collar(anchor","supports>=4","jointRadius"],app,'Procedural hardware geometry');
+// The new valve silhouettes live in authored, independently generated GLB assets.
+const assetLoader=fs.readFileSync(path.join(root,'js/valve-assets.js'),'utf8');
+const generator=fs.readFileSync(path.join(root,'tools/generate_valves.py'),'utf8');
+failIfMissing(['ValveAssets.loadValveModel','attachAuthoredValve','valveRevision','mount.scale.setScalar','v.handle.userData.pivotHeight'],app,'Authored valve integration');
+failIfMissing(['GLTFLoader','actuator_','disc_','../assets/valves/','clone()'],assetLoader,'Detailed mesh loader');
+failIfMissing(['revolution(','elliptical_loft(','handwheel(','flange(','for kind in'],generator,'Custom mesh generation');
+assert(!app.includes('function makeValve(i){'),'Do not regress to primitive-only valve bodies');
 assert(page.includes('width:100vw!important')&&page.includes('height:100dvh!important'),'Fullscreen canvas layout must remain enabled');
 
 // Regression: iPhone landscape/portrait image alignment, smaller initial model,
