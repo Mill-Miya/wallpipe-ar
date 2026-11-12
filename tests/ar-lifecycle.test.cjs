@@ -43,7 +43,7 @@ vm.runInNewContext(src.slice(a,b)+'\nreleaseValveInstance(lateValve);',{lateValv
 assert.equal(staleGeom.calls,1,'Late arrival geometry must be disposed');
 assert.equal(staleMat.calls,1,'Late arrival material must be disposed');
 assert(src.includes('if(revision!==valveRevision||!anchor||!mount.parent){releaseValveInstance(model.root);return;}'));
-assert(src.includes('onDetach:()=>{stopHandSampling();handGeneration++;valveRevision++;'));
+assert(src.includes('onDetach:()=>{stopHandSampling();disposeHandOcclusion();handGeneration++;valveRevision++;'));
 assert(src.includes('scheduleHandSampling();'));
 assert(!src.includes('if(tracking){sampleHand();animateFlow();}'),'Do not block 8th Wall render loop with ML inference');
 console.log('PASS: AR teardown, stale valve disposal, cached GLB geometry safety, separate hand scheduler');
