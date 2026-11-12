@@ -9,6 +9,9 @@ const nodes=new Set(gltf.nodes.map(x=>x.name));
 const required=['straight_shell','elbow_shell','tee_shell','tee_full_shell','tee_reduced_shell','cross_shell','reducer_shell','socket_shell','flange_shell','flange_fasteners','clamp_strap','mount_socket'];
 for(const name of required)assert(nodes.has(name),'Missing authored mesh: '+name);
 const triangles=gltf.meshes.flatMap(m=>m.primitives).reduce((sum,p)=>sum+(gltf.accessors[p.indices].count/3),0);
+for(const m of gltf.meshes)for(const primitive of m.primitives){
+ assert(primitive.attributes.NORMAL!==undefined,'Missing pipe surface normals: '+m.name);
+}
 assert(triangles>10000&&triangles<90000,'poly budget: '+triangles);
 assert(kit.length<1500000,'GLB too large');
 const html=fs.readFileSync('ar-hand.html','utf8');
@@ -21,4 +24,8 @@ assert(app.includes('anchor.userData.pipeAssetRoot'),'Pipe kit roots must be tra
 assert(!app.includes('obj.geometry.dispose();}});anchor.remove(child);'),'No indiscriminate geometry cleanup');
 assert(loader.includes("'tee_reduced_shell'"),'Branch diameter fitting missing');
 assert(home.includes('OrbitControls')&&home.includes('createPipeAssembly'),'Preview must orbit authored meshes');
+assert(home.includes('loadValveModel')&&home.includes('attachValveModels'),'Pipe preview must display real valves instead of disconnected gaps');
+assert(home.includes('AmbientLight')&&home.includes('toneMappingExposure'),'Preview requires ambient fill and calibrated exposure');
+assert(loader.includes('computeVertexNormals')&&loader.includes('emissiveIntensity'),'Mobile materials need explicit fallback lighting');
+assert(!loader.includes('metal=.61'),'Avoid high-metalness unlit silhouette without reflection maps');
 console.log('PASS: GLB nodes, size, '+triangles+' triangles, AR fallback and isolated pipe preview');
