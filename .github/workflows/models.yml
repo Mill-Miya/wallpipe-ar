@@ -6,6 +6,7 @@ on:
       - tools/generate_models.py
       - tools/generate_spatial.py
       - tools/generate_valves.py
+      - tools/generate_pipes.py
       - .github/workflows/models.yml
   workflow_dispatch:
 permissions:
@@ -19,13 +20,15 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install geometry libraries
-        run: python -m pip install "numpy>=1.26,<3" "trimesh>=4.0,<5" "scipy>=1.12,<2"
+        run: python -m pip install "numpy>=1.26,<3" "trimesh>=4.0,<5" "scipy>=1.12,<2" "scikit-image>=0.23,<1"
       - name: Generate generic pipe models
         run: python tools/generate_models.py
       - name: Generate wall-anchored AR probe
         run: python tools/generate_spatial.py
       - name: Generate detailed industrial valves
         run: python tools/generate_valves.py
+      - name: Generate authored pipe fittings
+        run: python tools/generate_pipes.py
       - name: Save generated models
         run: |
           git config user.name "github-actions[bot]"
