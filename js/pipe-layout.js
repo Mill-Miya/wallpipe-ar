@@ -43,6 +43,10 @@ function plan(network,scale=.00265){
    const ratio=other?.r/r||1;
    type=ports.length>3?'cross':ratio>.9?'tee_full':ratio>.69?'tee':'tee_reduced';
   }
+  if(['elbow','tee','tee_reduced','tee_full','cross'].includes(type)){
+    const det=x.x*y.y-x.y*y.x;
+    if(Math.abs(det)<.5)throw new Error('Invalid '+type+' pipe junction orientation at node '+nodeId);
+  }
   fittings.push({nodeId,type,x,y,r,shoulder,extra,portIds:ports.map(p=>p.edgeId)});
   for(const port of ports)trimPort(nodeId,port,shoulder);
  }
@@ -56,7 +60,7 @@ function plan(network,scale=.00265){
   const dx=bb.x-aa.x,dy=bb.y-aa.y,dist=Math.hypot(dx,dy);
   const start={x:aa.x+dx/dist*aTrim,y:aa.y+dy/dist*aTrim,z:.06};
   const end={x:bb.x-dx/dist*bTrim,y:bb.y-dy/dist*bTrim,z:.06};
-  spans.push({edgeId:e.id,kind:e.kind,r:radius(e.diameter),a:start,b:end,length:Math.hypot(end.x-start.x,end.y-start.y),aTrim,bTrim,nominalLength:l});
+  spans.push({edgeId:e.id,kind:e.kind,paintIndex:e.paintIndex??-1,r:radius(e.diameter),a:start,b:end,length:Math.hypot(end.x-start.x,end.y-start.y),aTrim,bTrim,nominalLength:l});
  }
  return{spans,fittings,stats:{spans:spans.length,fittings:fittings.length,elbows:fittings.filter(f=>f.type==='elbow').length,tees:fittings.filter(f=>f.type.startsWith('tee')).length,reducers:fittings.filter(f=>f.type==='reducer').length}};
 }
