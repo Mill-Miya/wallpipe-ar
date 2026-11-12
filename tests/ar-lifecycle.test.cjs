@@ -18,7 +18,7 @@ function resource(){return{calls:0,dispose(){this.calls++;}}}
 const scene=new Group('scene'),anchor=new Group('anchor');scene.add(anchor);
 const sharedPipeGeometry=resource(),pipeMaterial=resource(),valveGeom=resource(),valveMat=resource(),legacyGeom=resource(),legacyMat=resource(),wallTexture=resource();
 const pipe=new Group('pipe');pipe.add(mesh('sharedPipe',sharedPipeGeometry,pipeMaterial));anchor.add(pipe);
-const valveRoot=new Group('valve');valveRoot.add(mesh('ownedValve',valveGeom,valveMat));anchor.add(valveRoot);
+const valveRoot=new Group('valve');valveRoot.add(mesh('ownedValve',valveGeom,valveMat));
 const mount=new Group('mount');mount.add(valveRoot);
 anchor.add(mount);
 anchor.add(mesh('fallback',legacyGeom,legacyMat));
