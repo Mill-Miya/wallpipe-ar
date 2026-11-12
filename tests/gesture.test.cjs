@@ -39,7 +39,7 @@ assert(closed.terminalFlows[1]>0);
 for(let n=1;n<40;n++){
  const net=makeNetwork({mode:n%2?'water':'plant',seed:n,surface:'wall'});
  for(const pct of [0,.1,.35,.6,.85,1]){
-  const x=solveFlow(net,[pct,1,.45]);assert(x.total>=0&&Number.isFinite(x.total));
+  const x=solveFlow(net,net.valves.map((_,i)=>i===0?pct:(i%2?.45:1)));assert(x.total>=0&&Number.isFinite(x.total));
  }
 }
 const dwell=gesture.createState(),hoverValves=[{x:270,y:300}];const o=[0];
