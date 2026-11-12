@@ -49,7 +49,7 @@ details{font-size:12px;line-height:1.7;color:#56676b;margin-top:13px}summary{cur
 </head>
 <body>
 <div id="stage"><canvas id="arCanvas" aria-label="空間固定した3D配管とバルブのAR画面"></canvas></div>
-<header class="topbar"><div class="brand">WallPipe AR<small>空間固定・手操作 v0.8.4</small></div><a href="./index.html">シミュレーターへ戻る</a></header>
+<header class="topbar"><div class="brand">WallPipe AR<small>空間固定・手操作 v0.9.0</small></div><a href="./index.html">シミュレーターへ戻る</a></header>
 <div id="preview">配管はまだ配置されていません。空間追跡が始まったら正面の壁に向け、配置ボタンを押してください。</div>
 <div id="targetReticle" aria-hidden="true">＋</div><div id="pointer" aria-hidden="true"></div><div id="handHud" data-state="idle" role="status" aria-live="polite">手認識：配管配置後に起動</div>
 <aside class="panel is-collapsed" id="panel" aria-label="AR操作"><div class="panelHead"><div><div class="eyebrow">LIVE AR / HAND CONTROL</div><h1>バルブを手で回す</h1></div><button class="btn" id="collapse" type="button" aria-expanded="false">操作を開く</button></div><div class="panelbody">
@@ -70,10 +70,14 @@ details{font-size:12px;line-height:1.7;color:#56676b;margin-top:13px}summary{cur
 <script src="./js/gesture-control.js"></script>
 <script src="./js/hand-screen-map.js"></script>
 <script src="./js/tracking-gate.js"></script>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script>
 <script type="module">
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
+import * as THREE from 'three';
 window.THREE=THREE;
-try { await import('./js/ar-hand.js'); } catch(err) { document.getElementById('statusText').textContent='ARアプリを起動できません。ライブラリの読み込みと通信状況を確認してください。';document.getElementById('status').dataset.status='error';console.error(err); }
+try {
+ window.WallPipeValveAssets=await import('./js/valve-assets.js');
+ await import('./js/ar-hand.js');
+} catch(err) { document.getElementById('statusText').textContent='ARアプリを起動できません。ライブラリの読み込みと通信状況を確認してください。';document.getElementById('status').dataset.status='error';console.error(err); }
 </script>
 </body>
 </html>
