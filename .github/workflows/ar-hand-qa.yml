@@ -42,6 +42,35 @@ jobs:
         run: node tests/hand-screen-map.test.cjs
       - name: Pinned MediaPipe hand model loader and CDN fallback
         run: node tests/hand-model-loader.test.cjs
+      - name: Verify MediaPipe remote library, WASM and model endpoints
+        run: |
+          set -e
+          sdk_ok=0
+          for url in \
+            'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs' \
+            'https://unpkg.com/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs'; do
+            if curl -fsSIL --max-time 20 "$url" >/dev/null; then
+              echo "SDK reachable: $url"
+              sdk_ok=1
+            else
+              echo "::warning::SDK unreachable: $url"
+            fi
+          done
+          test "$sdk_ok" -eq 1
+          wasm_ok=0
+          for url in \
+            'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm/vision_wasm_internal.wasm' \
+            'https://unpkg.com/@mediapipe/tasks-vision@0.10.35/wasm/vision_wasm_internal.wasm'; do
+            if curl -fsSIL --max-time 20 "$url" >/dev/null; then
+              echo "WASM reachable: $url"
+              wasm_ok=1
+            else
+              echo "::warning::WASM unreachable: $url"
+            fi
+          done
+          test "$wasm_ok" -eq 1
+          curl -fsSIL --max-time 25 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task' >/dev/null
+
       - name: Hand mask geometry and camera composition checks
         run: node tests/hand-occlusion.test.cjs
       - name: Authored valve GLB geometry contracts
