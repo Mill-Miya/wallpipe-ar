@@ -1,30 +1,33 @@
-# WallPipe AR v0.9.3: hand foreground (approximate occlusion)
+# WallPipe AR v0.9.8｜手による3D配管の不可視化
 
-## Purpose
-Show a real hand in front of a world-anchored 3D valve/pipe by using the camera frame captured for hand tracking. This is **not** true 3D depth occlusion.
+## 目的
 
-## Implementation
-- `js/hand-occlusion.js` builds a lightweight palm polygon and finger capsules from 21 MediaPipe landmarks.
-- During each successful hand inference, it uses a transparent foreground 2D canvas. It clips the XR camera video to the approximate hand shape, then draws only that region over the Three.js scene.
-- The existing `HandMap.mapLandmarks` maps landmark coordinates to the same page viewport and orientation setting. The video is drawn with a matching cover crop/rotation/mirror transform.
-- No new camera stream is opened. The XR8-provided video is reused.
-- Disabling the checkbox, losing hand detection, tracking loss, page hide, reset, and camera detach clear the overlay.
-- Overlay errors disable this effect without stopping the separate hand gesture/valve controls.
+カメラ映像から切り出した手を「一番上」に再描画するのではなく、**手の形に該当する画素では配管とバルブの3D描画だけを行わない**。実写のカメラ映像は8th Wall XR8.GlTextureRenderer が通常どおり描画する。
 
-## Size
-- Initial model scale: 0.72 -> 0.95 (+32% relative change).
-- Adjustment range: 0.50 to 1.30.
-- This scales the whole pipe-and-valve assembly consistently, without changing fluid-flow parameters or pipe diameters.
+## 実装
 
-## Limitations
-- Not a precise hand segmentation algorithm: palm/finger silhouette is inferred from landmarks, so gaps/edges can be inaccurate.
-- Foreground masking does not measure hand depth; hand pixels can cover virtual parts even when a real hand is physically farther back.
-- Source-camera exposure, mirroring, orientation, XR8 crop, and latency may differ across iPhones. Do not claim correct live occlusion until device testing.
-- Mask updates at the existing hand inference cadence (roughly 5 Hz); fast motion can leave lag.
-- Rendering video on an overlay canvas may be blocked or mismatched in some WebKit/XR configurations; disable the toggle if artifacts appear.
-- No video is sent to an app-operated backend for this effect.
+- `js/hand-depth-mask.js` に独立した深度マスクを作成。カメラの3D投影空間内に、画面全面を覆う極薄メッシュを配置する。
+- 21個のMediaPipe手ランドマークを画面座標に変換し、掌を白いポリゴン、指を丸い線で描画した**白黒のマスク画像**だけをCanvasTextureに生成する。元のカメラ映像のピクセルは複製・再描画しない。
+- Three.jsの `MeshBasicMaterial` に `alphaMap`、`alphaTest`、`colorWrite:false`、`depthWrite:true`、`depthTest:true` を指定。黒い部分は破棄し、白い部分だけ深度を書き込む。手マスクは3D配管より先に描画され、配管の深度テストを遮る。画面色は手マスクから一切書かれない。
+- カメラの投影行列逆変換で、画面角からカメラローカル座標のマスク四角形を計算する。XR端末の視野角変化に追随する。
+- 手が消えた、空間追跡が失われた、セッションが終了した、ページが非表示になった、遮蔽をオフにした、推論から750ms以上経過した場合には、即座にマスクを非表示にする。
+- iPhoneの性能を考慮して、白黒のマスクCanvasは画面解像度の約75%で生成する。既存のMediaPipe認識結果を再利用し、推論モデルを追加しない。
+- カメラセッション終了時はGPUのジオメトリ、材質、CanvasTextureを明示的に解放する。
 
-## Verification
-- `node tests/hand-occlusion.test.cjs`: contour data, transforms, clear state, mock draw operations.
-- `node tests/ar-hand.test.cjs`: integration contract and unchanged plumbing/gesture checks.
-- Actual AR hand/pipe occlusion, iPhone performance, and tracking accuracy remain device-level acceptance checks.
+## 表示倍率
+
+AR近距離探索の初期倍率を `1.40` → `1.65` に変更。設定で65〜230%に調整可能。空間配置の実世界寸法は測っていない。
+
+## 制限
+
+- 白黒マスクは関節点から近似した形状であり、正確なセグメンテーションではない。指と指の隙間や輪郭は粗い場合がある。
+- **本当の奥行き判定はしていない。** 背後にある実物の手であっても、見かけ上重なれば仮想配管を隠す。
+- 手認識の約4〜5Hz更新により素早い指の動きに遅延が発生し得る。
+- Chromiumの実WebGL試験で色バッファと深度バッファの挙動を検証する。XR8のiPhone Safari実機上で期待どおり動くかは別途確認が必要。
+- 既存の空間固定は推定ワールド位置であり、実際の壁面の深度測定ではない。
+
+## 検証
+
+- `node tests/hand-depth-mask.test.cjs`：白黒マスク、深度・色書き込み設定、姿勢更新、モデル開放、カメラ画像の再描画禁止。
+- `node tests/browser-depth-mask.test.mjs`：Chromiumの実WebGL描画で、マスク内の3Dオブジェクトだけが消えるかをピクセル値で検証。
+- `node tests/ar-hand.test.cjs`：既存のAR起動・手操作・UIなどの回帰テスト。
