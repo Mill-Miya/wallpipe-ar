@@ -67,7 +67,7 @@ for(const mode of ['water','air','plant']){
   for(const state of states){
    const r=Engine.solveFlow(net,state);
    assert(Number.isFinite(r.total)&&r.total>=0);
-   assert.equal(r.terminalFlows.length,3);
+   assert.equal(r.terminalFlows.length,net.valves.length);
    assert(r.terminalFlows.every(f=>Number.isFinite(f)&&f>=-1e-6));
    if(state.every(v=>v===0))assert(r.terminalFlows.every(f=>Math.abs(f)<1e-6));
    networkCases++;
