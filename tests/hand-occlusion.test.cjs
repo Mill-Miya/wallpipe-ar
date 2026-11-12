@@ -18,10 +18,10 @@ assert.equal(b.rotation,Math.PI/2);
 assert(b.imageHeight>=390); // Rotated image covers the viewport after transform
 assert.equal(Occlusion.frameTransform(1280,720,390,844,'mirror').mirror,true);
 assert.equal(Occlusion.frameTransform(0,720,390,844),null);
-let draws=0,clips=0,clears=0,saveCount=0,restoreCount=0;
+let draws=0,clips=0,clears=0,saveCount=0,restoreCount=0;const arcDirections=[];
 const ctx={
  setTransform(){},clearRect(){clears++;},save(){saveCount++;},restore(){restoreCount++;},
- beginPath(){},moveTo(){},lineTo(){},closePath(){},arc(){},clip(){clips++;},
+ beginPath(){},moveTo(){},lineTo(){},closePath(){},arc(...args){arcDirections.push(args);},clip(){clips++;},
  translate(){},rotate(){},scale(){},drawImage(){draws++;}
 };
 const canvas={width:0,height:0,getBoundingClientRect:()=>({left:0,top:0,width:390,height:844}),getContext:()=>ctx};
@@ -29,6 +29,7 @@ const video={videoWidth:1280,videoHeight:720,readyState:4};
 assert.equal(Occlusion.render(canvas,video,points,{mode:'normal',pixelRatio:1.25}),true);
 assert.equal(draws,1);assert.equal(clips,1);
 assert.equal(saveCount,restoreCount);
+assert(arcDirections.some(args=>args.length===6&&args[5]===true),'Finger caps must bulge outward, not fold into the bone');
 assert(canvas.width>=390&&canvas.height>=844);
 Occlusion.clear(canvas);
 assert(clears>=2);
