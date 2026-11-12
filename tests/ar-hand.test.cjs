@@ -28,6 +28,9 @@ failIfMissing(['revolution(','elliptical_loft(','handwheel(','flange(','for kind
 assert(!app.includes('function makeValve(i){'),'Do not regress to primitive-only valve bodies');
 assert(page.includes('js/valve-placement.js'),'AR must load the common factory valve mounting contract');
 assert(app.includes('ValveMount.mounting(network,i)'),'AR must adapt valve dimension and type to its route');
+assert(app.includes('FlowVisuals.create('),'AR must create terminal-specific water stream objects');
+assert(app.includes('flowDisplay?.sync(summary)'),'Every valve opening change must update water jets');
+assert(app.includes('flowDisplay?.animate(performance.now())'),'Flow animation must use independent flow bars');
 assert(app.includes('network.valves.map(()=>1)')&&app.includes('updateValveOptions()'),'AR selector and opening vector must follow generated valve count');
 assert(!app.includes("['gate','ball','butterfly'][i%3]"),'Factory valve assignment must not be fixed by lane');
 
@@ -35,9 +38,9 @@ assert(page.includes('width:100vw!important')&&page.includes('height:100dvh!impo
 
 // Regression: iPhone landscape/portrait image alignment, smaller initial model,
  // and visible diagnostics are required before claiming AR hand usability.
-failIfMissing(['id="handHud"','id="placeScale"','id="placeDistance"','value="1.3"','value="1.65"'],page,'AR viewport and hand visibility');
+failIfMissing(['id="handHud"','id="placeScale"','id="placeDistance"','value="1.3"','value="1.85"'],page,'AR viewport and hand visibility');
 failIfMissing(['handStatus','ownedVideo.srcObject=sourceStream','anchor.scale.setScalar(Number(ui.scale.value))','ui.scale.disabled=false','lastInference=now'],app,'Hand feed and placement scale');
-assert(page.includes('v0.9.8'),'AR exploratory layout release marker must match');
+assert(page.includes('v0.9.9'),'AR exploratory layout release marker must match');
 failIfMissing(['id="handOcclusion"','id="handOcclusionToggle"','js/hand-depth-mask.js'],page,'Hand foreground overlay UI');
 assert(page.includes('#stage.ar-placed~#preview'),'Placed AR should hide intrusive instruction');
 assert(page.includes('[data-alert="error"]'),'Asset error must remain visible after placement');
