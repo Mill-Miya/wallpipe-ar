@@ -82,22 +82,41 @@ async function attachValveModels(bundle,network,token){
   return true;
  });
  const results=await Promise.allSettled(items);
- return results.filter(x=>x.status==='fulfilled'&&x.value===true).length;
+ const failures=results.filter(x=>x.status==='rejected').map(x=>String(x.reason?.message||x.reason).slice(0,170));
+ return {count:results.filter(x=>x.status==='fulfilled'&&x.value===true).length,failures};
 }
 async function build(){
- const token=++seq,n=window.WallPipeEngine.makeNetwork({mode,surface:'wall',seed});
+ const token=++seq;
  $('status').textContent='配管を生成中…';
+ let phase='配管の構成生成',bundle=null;
  try{
-  const bundle=await createPipeAssembly(n,{mode});
+  const n=window.WallPipeEngine.makeNetwork({mode,surface:'wall',seed});
+  phase='配管のGLBモデル生成';
+  bundle=await createPipeAssembly(n,{mode});
   if(token!==seq){disposeBundle(bundle);return;}
-  const valveCount=await attachValveModels(bundle,n,token);
+  phase='バルブGLBの読み込み';
+  const {count:valveCount,failures}=await attachValveModels(bundle,n,token);
   if(token!==seq){disposeBundle(bundle);return;}
   disposeBundle(active);
   active=bundle;scene.add(bundle.root);
   const t=bundle.stats;
-  $('status').textContent=valveCount===n.valves.length?'読み込み完了。配管とバルブを色・接続・側面から確認できます。':'配管は表示しましたが、一部のバルブを読み込めませんでした。';
-  $('metrics').textContent='直管：'+t.spans+' / 継手：'+t.fittings+'\nエルボ：'+t.elbows+' / T字：'+t.tees+'\nレジューサ：'+t.reducers+' / 支持具：'+t.supports+'\nバルブ：'+valveCount+' / '+n.valves.length+'\n構成：'+n.scheme+'\n弁種：'+n.valves.map(v=>({gate:'仕切弁',ball:'ボール弁',butterfly:'バタフライ弁',control:'調節弁'})[v.type]||'一般弁').join(' / ');
- }catch(e){console.error(e);$('status').textContent='配管モデルを読み込めませんでした。通信とページの再読み込みを確認してください。';}
+  const paletteNames={'steel-blue':'青灰鋼管','copper':'銅・黄土','forest':'緑灰鋼管','graphite':'黒鉛灰','safety':'安全色アクセント','cool':'冷色鋼管'};
+  const paletteLabel=paletteNames[n.palette]||'標準';
+  $('status').textContent=valveCount===n.valves.length?
+   '読込完了：'+n.valves.length+'系統、'+paletteLabel+'。回転して接続部を確認できます。':
+   '配管は表示しましたが、バルブ '+valveCount+'/'+n.valves.length+'。'+failures.join(' / ');
+  $('metrics').textContent='直管：'+t.spans+' / 継手：'+t.fittings+
+   '\nエルボ：'+t.elbows+' / T字：'+t.tees+
+   '\nレジューサ：'+t.reducers+' / 支持具：'+t.supports+
+   '\n設備ライン：'+n.valves.length+'本 / バルブ表示：'+valveCount+
+   '\n配色：'+paletteLabel+' / 生成シード：'+seed+
+   '\n構成：'+n.scheme+
+   '\n弁種：'+n.valves.map(v=>({gate:'仕切弁',ball:'ボール弁',butterfly:'バタフライ弁',control:'調節弁'})[v.type]||'一般弁').join(' / ');
+ }catch(e){
+  console.error('Pipe preview failed',phase,'seed',seed,e);
+  if(bundle&&token===seq)disposeBundle(bundle);
+  if(token===seq)$('status').textContent=phase+'でエラー（seed '+seed+'）：'+String(e?.message||e).slice(0,180);
+ }
 }
 for(const b of document.querySelectorAll('[data-mode]'))b.addEventListener('click',()=>{
  mode=b.dataset.mode;for(const n of document.querySelectorAll('[data-mode]'))n.setAttribute('aria-pressed',String(n===b));seed++;build();
