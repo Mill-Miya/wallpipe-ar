@@ -3,14 +3,14 @@
  * Image-space hand/valve interaction is approximate, not 3D collision detection.
  */
 const THREE=window.THREE, Engine=window.WallPipeEngine, Gestures=window.WallPipeGesture;
-const HandMap=window.WallPipeHandScreenMap, TrackingGate=window.WallPipeTrackingGate;
-if(!THREE||!Engine||!Gestures||!HandMap||!TrackingGate)throw new Error('Missing WallPipe or three.js dependencies');
+const HandMap=window.WallPipeHandScreenMap, TrackingGate=window.WallPipeTrackingGate, ValveAssets=window.WallPipeValveAssets;
+if(!THREE||!Engine||!Gestures||!HandMap||!TrackingGate||!ValveAssets)throw new Error('Missing WallPipe dependencies or valve GLB loader');
 const $=id=>document.getElementById(id);
 const ui={stage:$('stage'),canvas:$('arCanvas'),start:$('start'),place:$('place'),reset:$('reset'),panel:$('panel'),collapse:$('collapse'),preview:$('preview'),status:$('status'),statusText:$('statusText'),info:$('info'),hand:$('handState'),pointer:$('pointer'),opening:$('opening'),openingOut:$('openingOut'),select:$('valveSelect'),toggle:$('toggle'),summary:$('flowSummary'),quick:$('quickAction'),alignment:$('handTransform'),handRetry:$('handRetry'),rescan:$('rescan'),trackingDetails:$('trackingDetails'),handHud:$('handHud'),scale:$('placeScale'),scaleOut:$('placeScaleOut'),distance:$('placeDistance'),distanceOut:$('placeDistanceOut'),height:$('placeHeight'),heightOut:$('placeHeightOut'),reticle:$('targetReticle')};
 const clamp=(v,lo,hi)=>Math.min(hi,Math.max(lo,v));
 let started=false,scene=null,camera=null,anchor=null,video=null,ownedVideo=null,tracking=false,lastTracking='',lastReason='';
 let mode='water',network=null,openings=[1,1,1],selected=0,modelReady=false,landmarker=null,loadingHand=false;
-let valves=[],flowMarkers=[],gesture=Gestures.createState(),lastInference=0,lastMessage='',handInitFailed=false,lastVideoTime=-1,lastHandsSeen=0;
+let valves=[],flowMarkers=[],gesture=Gestures.createState(),lastInference=0,lastMessage='',handInitFailed=false,lastVideoTime=-1,lastHandsSeen=0,valveRevision=0;
 const trackingGate=TrackingGate.createState();
 const colorByMode={water:0x2b8ea1,air:0x368d74,plant:0xb37a38};
 function state(status,message){if(ui.status.dataset.status!==status||ui.statusText.textContent!==message){ui.status.dataset.status=status;ui.statusText.textContent=message;}}
@@ -28,12 +28,13 @@ function refreshFlow(){
  let summary;
  try{summary=Engine.solveFlow(network,openings);}catch(e){state('error','流量計算に失敗しました。');console.error(e);return;}
  ui.summary.textContent=`通水系統：${summary.active} / ${network.terminals.length}（相対流量 ${summary.total.toFixed(2)}）`;
- for(const v of valves){const op=openings[v.index],shut=1-op;v.handle.rotation.z=(v.type==='gate'||v.type==='control')?shut*Math.PI*3:shut*Math.PI*.5;if(v.type==='gate'||v.type==='control')v.handle.position.z=.187+op*.018;if(v.disc)v.disc.rotation.y=op*Math.PI*.5;v.ring.material.color.setHex(op>.01?0x829a9a:0x9c7564);}
+ for(const v of valves){const op=openings[v.index],shut=1-op;if(v.handle){v.handle.rotation.z=(v.type==='gate'||v.type==='control')?shut*Math.PI*3:shut*Math.PI*.5;if(v.type==='gate'||v.type==='control')v.handle.position.z=v.handle.userData.pivotHeight+op*.018;}if(v.disc)v.disc.rotation.z=op*Math.PI*.5;}
 }
 function setOpening(index,value){if(!Number.isFinite(value))return;openings[index]=clamp(Math.round(value*100)/100,0,1);refreshFlow();if(index===selected)syncControls();}
 function addRod(parent,a,b,r,mat){const d=new THREE.Vector3().subVectors(b,a),len=d.length();if(len<.0001)return null;const obj=new THREE.Mesh(new THREE.CylinderGeometry(r,r,len,12),mat);obj.position.copy(a).add(b).multiplyScalar(.5);obj.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());parent.add(obj);return obj;}
 function point(n,z=.06){return new THREE.Vector3(n.x*.00265,-n.y*.00265,z);}
 function buildNetwork(){
+ const revision=++valveRevision;
  const seed=(Math.random()*4294967295)>>>0;
  network=Engine.makeNetwork({mode,surface:'wall',seed});openings=[1,1,1];Gestures.reset(gesture);selected=0;
  if(!anchor){syncControls();return;}
@@ -67,7 +68,7 @@ function buildNetwork(){
   for(const id of [e.a,e.b]){jointRadius.set(id,Math.max(jointRadius.get(id)||0,r));degrees.set(id,(degrees.get(id)||0)+1);}
   const a=point(network.nodes[e.a]),b=point(network.nodes[e.b]);
   const m=e.kind==='return'?returnM:e.kind==='load'?loadM:pipeM;
-  addRod(anchor,a,b,r,m);
+  if(e.valveIndex<0)addRod(anchor,a,b,r,m);
   // A pipe sleeve shows the transition between a header and a smaller branch.
   if(e.kind==='supply'&&r>.032)collar(anchor,a.clone().lerp(b,.83),r,b.clone().sub(a).normalize(),1.14);
   const pulse=at(anchor,pulseGeo,waterM,a.clone());
@@ -85,34 +86,31 @@ function buildNetwork(){
   const p=point(network.nodes[id]);p.z=-.035;
   at(anchor,new THREE.BoxGeometry(.032,.027,.14),wheelM,p);supports++;
  }
- function makeValve(i){
-  const v=network.valves[i],e=network.edges[v.edgeId],a=point(network.nodes[e.a]),b=point(network.nodes[e.b]);
-  const p=a.clone().add(b).multiplyScalar(.5),axis=b.clone().sub(a).normalize();
-  const r=clamp(e.diameter*.00172,.014,.052);
-  // Flanged connections are anchored on either side of the real flow axis.
-  for(const t of [-.5,.5])collar(anchor,p.clone().addScaledVector(axis,t*.18),Math.max(r,.029),axis,1.55);
+ function attachAuthoredValve(i){
+  const v=network.valves[i],edge=network.edges[v.edgeId];
+  const a=point(network.nodes[edge.a]),b=point(network.nodes[edge.b]);
+  const p=a.clone().add(b).multiplyScalar(.5);
   const type=mode==='water'?'ball':mode==='air'?'control':['gate','ball','butterfly'][i%3];
-  const base=new THREE.Group();base.position.copy(p);anchor.add(base);
-  const ring=at(base,new THREE.SphereGeometry(1,14,10),material(0x8a9e9e,.54));
-  ring.scale.set(type==='butterfly'?.059:.10,type==='butterfly'?.06:.081,type==='butterfly'?.03:.058);
-  const bonnet=at(base,new THREE.CylinderGeometry(.031,.047,type==='gate'?.17:.105,12),valveM,new THREE.Vector3(0,0,type==='gate'?.125:.085));
-  bonnet.rotation.x=Math.PI/2;
-  addRod(base,new THREE.Vector3(0,0,.08),new THREE.Vector3(0,0,.18),.018,jointM);
-  const handle=new THREE.Group();handle.position.z=.187;base.add(handle);
-  let disc=null;
-  if(type==='ball'||type==='butterfly'){
-   const lever=at(handle,new THREE.BoxGeometry(type==='ball'?.23:.17,.026,.032),leverM,new THREE.Vector3(type==='ball'?.09:.065,0,0));
-   at(handle,new THREE.SphereGeometry(.027,9,7),wheelM,new THREE.Vector3(type==='ball'?.19:.135,0,0));
-   if(type==='butterfly'){disc=at(base,new THREE.CylinderGeometry(.052,.052,.017,16),wheelM);disc.rotation.x=Math.PI/2;}
-  }else{
-   at(handle,new THREE.TorusGeometry(.089,.013,8,22),wheelM);
-   for(let k=0;k<4;k++){const t=k*Math.PI/2;addRod(handle,new THREE.Vector3(),new THREE.Vector3(Math.cos(t)*.09,Math.sin(t)*.09,0),.009,wheelM);}
-   at(handle,new THREE.SphereGeometry(.027,9,7),leverM);
-  }
-  addValveLabel(base,i);
-  return {index:i,type,marker:new THREE.Vector3(p.x,p.y,p.z+.17),handle,ring,disc};
+  const mount=new THREE.Group();mount.name='valve-mount-'+i;
+  mount.position.copy(p);mount.rotation.z=v.axis==='h'?-Math.PI/2:0;mount.scale.setScalar(.68);
+  anchor.add(mount);
+  const label=new THREE.Group();label.position.set(p.x,p.y,p.z+.19);anchor.add(label);
+  addValveLabel(label,i);
+  const entry={index:i,type,marker:new THREE.Vector3(p.x,p.y,p.z+.16),mount,handle:null,disc:null};
+  valves.push(entry);
+  ValveAssets.loadValveModel(type).then(model=>{
+   // Never attach a model from a previous regeneration of this AR scene.
+   if(revision!==valveRevision||!anchor||!mount.parent)return;
+   mount.add(model.root);
+   entry.handle=model.handle;entry.disc=model.disc;
+   refreshFlow(); // Apply current opening even if the asset loaded after a gesture.
+  }).catch(error=>{
+   if(revision!==valveRevision)return;
+   console.error('Valve mesh failed',type,error);
+   ui.preview.textContent='バルブの3Dモデルを読み込めませんでした。通信を確認して再生成してください。';
+  });
  }
- for(let i=0;i<network.valves.length;i++)valves.push(makeValve(i));
+ for(let i=0;i<network.valves.length;i++)attachAuthoredValve(i);
  anchor.userData.materials=ownedMaterials;
  anchor.userData.textures=labelTextures;
  refreshFlow();syncControls();
