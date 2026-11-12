@@ -28,6 +28,7 @@ failIfMissing(['revolution(','elliptical_loft(','handwheel(','flange(','for kind
 assert(!app.includes('function makeValve(i){'),'Do not regress to primitive-only valve bodies');
 assert(page.includes('js/valve-placement.js'),'AR must load the common factory valve mounting contract');
 assert(app.includes('ValveMount.mounting(network,i)'),'AR must adapt valve dimension and type to its route');
+assert(app.includes('network.valves.map(()=>1)')&&app.includes('updateValveOptions()'),'AR selector and opening vector must follow generated valve count');
 assert(!app.includes("['gate','ball','butterfly'][i%3]"),'Factory valve assignment must not be fixed by lane');
 
 assert(page.includes('width:100vw!important')&&page.includes('height:100dvh!important'),'Fullscreen canvas layout must remain enabled');
@@ -59,8 +60,11 @@ let networkCases=0;
 for(const mode of ['water','air','plant']){
  for(let seed=1;seed<=120;seed++){
   const net=Engine.makeNetwork({mode,surface:'wall',seed});
-  assert.equal(net.valves.length,3);
-  for(const state of [[1,1,1],[0,0,0],[.15,.35,.8],[0,1,1],[1,0,1],[1,1,0]]){
+  assert(mode==='plant'?net.valves.length>=2&&net.valves.length<=5:net.valves.length===3);
+  const all=net.valves.map(()=>1),zero=net.valves.map(()=>0);
+  const partial=net.valves.map((_,i)=>.15+.14*i);
+  const states=[all,zero,partial,...net.valves.map((_,j)=>net.valves.map((_,i)=>Number(i!==j)))];
+  for(const state of states){
    const r=Engine.solveFlow(net,state);
    assert(Number.isFinite(r.total)&&r.total>=0);
    assert.equal(r.terminalFlows.length,3);
