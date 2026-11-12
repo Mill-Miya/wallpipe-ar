@@ -50,6 +50,18 @@ details{font-size:12px;line-height:1.7;color:#56676b;margin-top:13px}summary{cur
 .explorePresets{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:12px 0 10px}
 .explorePresets button[aria-pressed="true"]{background:#dceae6;border-color:var(--accent);font-weight:700}
 #handFailureDetails{margin:8px 0 12px;padding:8px 10px;background:#fff4ed;color:#663d2a;border-left:3px solid #b35e40;font-size:11px;line-height:1.6;overflow-wrap:anywhere}
+
+/* AR view: once placed, prioritize the real world over instructional chrome. */
+#stage.ar-placed~#preview{display:none}
+#stage.ar-placed~#preview[data-alert="error"]{display:block;border-left-color:#b04b37;max-width:min(430px,calc(100vw - 24px))}
+@media(max-width:720px){
+ .panel.is-collapsed{padding:7px 12px calc(7px + env(safe-area-inset-bottom));max-height:none;box-shadow:0 -1px 5px #182b2914}
+ .panel.is-collapsed .eyebrow{display:none}
+ .panel.is-collapsed .panelHead h1{font-size:13px}
+ .panel.is-collapsed .panelHead button{font-size:12px;min-height:40px}
+ #stage.ar-placed~#info{bottom:calc(70px + env(safe-area-inset-bottom));left:8px;right:8px;font-size:10px;max-height:44px;overflow:hidden;box-shadow:none}
+ #stage.ar-placed~#handHud{top:calc(58px + env(safe-area-inset-top));max-width:min(250px,calc(100vw - 24px));background:#f7f8f4d9}
+}
 </style>
 <!-- 8th Wall binary: Copyright © 2026 Niantic Spatial, Inc. License: https://github.com/8thwall/engine/blob/main/LICENSE -->
 <script src="https://cdn.jsdelivr.net/npm/@8thwall/xrextras@1/dist/xrextras.js" crossorigin="anonymous"></script>
