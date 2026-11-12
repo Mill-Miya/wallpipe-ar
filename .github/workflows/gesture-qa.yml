@@ -8,6 +8,8 @@ on:
       - gesture-test.html
       - tests/gesture.test.cjs
       - tests/piping.test.cjs
+      - js/valve-placement.js
+      - tests/factory-valve-variation.test.cjs
       - .github/workflows/gesture-qa.yml
   workflow_dispatch:
 permissions:
@@ -21,6 +23,7 @@ jobs:
         with:
           node-version: '22'
       - run: node tests/piping.test.cjs
+      - run: node tests/factory-valve-variation.test.cjs
       - run: node tests/gesture.test.cjs
       - name: Confirm public page links
         run: |
