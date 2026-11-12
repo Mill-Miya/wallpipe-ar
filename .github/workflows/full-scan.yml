@@ -1,0 +1,45 @@
+name: WallPipe exhaustive system scan
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'js/**'
+      - 'tests/**'
+      - 'pipe-preview.html'
+      - 'ar-hand.html'
+      - 'assets/pipes/**'
+      - 'assets/valves/**'
+      - '.github/workflows/full-scan.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax and browser entry contracts
+        run: |
+          for file in js/*.js; do node --check "$file"; done
+          node tests/entrypoint.test.cjs
+          node tests/ar-hand.test.cjs
+      - name: 10k+ piping network sweep and geometry validation
+        run: node tests/full-scan.test.cjs
+      - name: Variable factory count, type and palette coverage
+        run: node tests/factory-valve-variation.test.cjs
+      - name: Existing regression suite
+        run: |
+          node tests/piping.test.cjs
+          node tests/pipe-layout.test.cjs
+          node tests/pipe-kit.test.cjs
+          node tests/valve-assets.test.cjs
+          node tests/system-diversity.test.cjs
+          node tests/gesture.test.cjs
+          node tests/hand-screen-map.test.cjs
+          node tests/hand-occlusion.test.cjs
+          node tests/hand-model-loader.test.cjs
+          node tests/ar-lifecycle.test.cjs
