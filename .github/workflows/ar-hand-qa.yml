@@ -16,6 +16,8 @@ on:
       - js/piping-engine.js
       - js/hand-screen-map.js
       - js/hand-occlusion.js
+      - js/hand-model-loader.js
+      - tests/hand-model-loader.test.cjs
       - tests/hand-occlusion.test.cjs
       - js/tracking-gate.js
       - tests/hand-screen-map.test.cjs
@@ -33,11 +35,13 @@ jobs:
         with:
           node-version: '22'
       - name: JavaScript syntax
-        run: node --check js/valve-assets.js && node --check js/hand-occlusion.js && node --check js/ar-hand.js && node --check js/gesture-control.js && node --check js/piping-engine.js && node --check js/hand-screen-map.js && node --check js/tracking-gate.js
+        run: node --check js/valve-assets.js && node --check js/hand-occlusion.js && node --check js/hand-model-loader.js && node --check js/ar-hand.js && node --check js/gesture-control.js && node --check js/piping-engine.js && node --check js/hand-screen-map.js && node --check js/tracking-gate.js
       - name: World tracking and gesture integration contract
         run: node tests/ar-hand.test.cjs
       - name: Video-screen calibration and SLAM stability
         run: node tests/hand-screen-map.test.cjs
+      - name: Pinned MediaPipe hand model loader and CDN fallback
+        run: node tests/hand-model-loader.test.cjs
       - name: Hand mask geometry and camera composition checks
         run: node tests/hand-occlusion.test.cjs
       - name: Authored valve GLB geometry contracts
