@@ -105,8 +105,14 @@ strap=[(1.16*math.cos(t),0,1.16*math.sin(t)) for t in ts]
 directions=[(-math.sin(t),0,math.cos(t)) for t in ts]
 sweep_annulus('clamp_strap',strap,directions,outer=.13,inner=.018,radial=10)
 annular_profile('mount_socket',[(-.14,.23,.13),(-.09,.28,.13),(.08,.28,.13),(.14,.23,.13)],'bracket',radial=16)
-out=OUT/'pipe-kit.glb';out.write_bytes(scene.export(file_type='glb'))
-loaded=tm.load_scene(io.BytesIO(out.read_bytes()),file_type='glb')
+out=OUT/'pipe-kit.glb';out.write_bytes(tm.exchange.gltf.export_glb(scene,include_normals=True))
+# Preserve face normals explicitly for reliable lighting on mobile glTF renderers.
+import struct, json
+raw=out.read_bytes()
+json_size=struct.unpack_from('<I',raw,12)[0]
+doc=json.loads(raw[20:20+json_size])
+assert all('NORMAL' in p['attributes'] for m in doc['meshes'] for p in m['primitives']), 'Missing normals in GLB'
+loaded=tm.load_scene(io.BytesIO(raw),file_type='glb')
 required={'straight_shell','elbow_shell','tee_shell','tee_full_shell','tee_reduced_shell','cross_shell','reducer_shell','socket_shell','flange_shell','flange_fasteners','end_connector_shell','clamp_strap','mount_socket'}
 assert required.issubset(set(loaded.graph.nodes)),required-set(loaded.graph.nodes)
 for mesh in loaded.geometry.values():assert mesh.is_watertight and mesh.is_winding_consistent
