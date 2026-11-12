@@ -18,6 +18,7 @@ try{
   point:(n,z=.06)=>new THREE.Vector3(n.x*.00265,-n.y*.00265,z)
  });
  for(const marker of visuals.barMarkers)marker.mesh.visible=false;
+ visuals.sync(window.WallPipeEngine.solveFlow(network,allStates));
  const coords=visuals.outlets.map(o=>{
   o.column.updateWorldMatrix(true,false);
   return o.column.getWorldPosition(new THREE.Vector3()).project(camera);
