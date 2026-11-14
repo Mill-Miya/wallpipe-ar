@@ -7,6 +7,7 @@ on:
       - js/gesture-control.js
       - gesture-test.html
       - tests/gesture.test.cjs
+      - tests/gesture-dynamic-count.test.cjs
       - tests/piping.test.cjs
       - js/valve-placement.js
       - tests/factory-valve-variation.test.cjs
@@ -27,6 +28,8 @@ jobs:
       - run: node tests/factory-valve-variation.test.cjs
       - run: node tests/system-diversity.test.cjs
       - run: node tests/gesture.test.cjs
+      - name: Variable factory valve count in standalone gesture demo
+        run: node tests/gesture-dynamic-count.test.cjs
       - name: Confirm public page links
         run: |
           test -f gesture-test.html
