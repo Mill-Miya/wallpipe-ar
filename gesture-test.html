@@ -36,7 +36,7 @@ p{line-height:1.65}.lede{font-size:13px;color:#4e6465;margin:0 0 17px}.section{b
 <main>
 <section class="stage" id="stage" aria-label="手とバルブのカメラ合成画面">
  <video id="feed" autoplay muted playsinline aria-label="カメラ映像"></video>
- <canvas id="overlay" tabindex="0" aria-label="仮想配管と3つのバルブ。タップでバルブを選択できます"></canvas>
+ <canvas id="overlay" tabindex="0" aria-label="仮想配管と複数のバルブ。タップでバルブを選択できます"></canvas>
  <div class="stageLabel">手認識・流量連動 / 空間固定ではない</div>
  <div class="instructions" id="stageHint">カメラがなくても試せます。バルブをタップして選択し、右側の開度スライダーを操作してください。</div>
 </section>
@@ -44,7 +44,7 @@ p{line-height:1.65}.lede{font-size:13px;color:#4e6465;margin:0 0 17px}.section{b
  <p class="kicker">VALVE CONTROL / 01</p><h1>手でバルブを回す</h1><p class="lede">手の形と回転を認識し、架空の配管の流れを変化させます。</p>
  <div id="status" class="status" data-state="idle" role="status" aria-live="polite"><span class="dot"></span><span id="statusText">カメラ未起動。手認識はオフです。</span></div>
  <div class="section"><h2>01 / カメラと認識</h2><div class="controls"><button id="startBtn" class="primary" type="button">カメラを起動</button><button id="stopBtn" type="button" disabled>停止する</button></div><div class="controls" style="margin-top:8px"><button id="rearBtn" type="button" aria-pressed="true">背面カメラ</button><button id="frontBtn" type="button" aria-pressed="false">前面カメラ</button></div><p class="note" style="margin-top:9px">初回にモデルを取得するためネット接続が必要です。認識は端末上で行い、カメラ映像をこのアプリのサーバーに送信しません。</p></div>
- <div class="section"><h2>02 / 設備モデル</h2><select id="mode" aria-label="設備モデル"><option value="water">給水設備・枝管3系統</option><option value="air">空調設備・並列コイル3系統</option><option value="plant">工場設備・並列設備3系統</option></select><button id="newBtn" type="button" style="width:100%;margin-top:8px">新しい配管を生成</button></div>
+ <div class="section"><h2>02 / 設備モデル</h2><select id="mode" aria-label="設備モデル"><option value="water">給水設備・枝管3系統</option><option value="air">空調設備・並列コイル3系統</option><option value="plant">工場設備・並列設備2〜5系統</option></select><button id="newBtn" type="button" style="width:100%;margin-top:8px">新しい配管を生成</button></div>
  <div class="section"><h2>03 / 選択中のバルブ</h2><div class="valueRow"><span id="valveName">V-01</span><strong id="valueText">100%</strong></div><input class="range" id="openSlider" type="range" min="0" max="100" step="1" value="100" aria-label="選択中バルブの開度"><div class="progress" aria-hidden="true"><div id="progressFill" style="width:100%"></div></div><div class="controls" style="margin-top:10px"><button id="closeValve" type="button">全閉にする</button><button id="openValve" type="button">全開にする</button></div><p id="flowSummary" role="status">通水中：3系統 / 3系統</p></div>
  <div class="section"><h2>04 / 手の操作</h2><ol class="guide"><li>背面カメラにもう片方の手を映し、バルブの近くに指を合わせます。</li><li><strong>親指と人差し指でつまみ、手を回転</strong>すると開度が変化します。</li><li>手を開いて<strong>1.4秒かざす</strong>と、バルブの全開・全閉を切り替えます。</li><li>誤操作した場合は下のスライダーで開度を修正できます。</li></ol></div>
  <p class="note">技術的制約：これは手認識と流量計算を検証する2Dカメラ合成です。実際のバルブや配管は検出しません。空間固定AR（Quick Look）中に手認識を重ねるものではありません。開度と流量は教育用の簡易近似です。</p>
@@ -55,14 +55,14 @@ const $=id=>document.getElementById(id);
 const engine=window.WallPipeEngine, gesture=window.WallPipeGesture;
 const canvas=$('overlay'),ctx=canvas.getContext('2d'),video=$('feed'),stage=$('stage');
 const state=gesture.createState();
-let network,flow,openings=[1,1,1],selected=0,seed=43,mode='water',camera='environment',stream=null,detector=null;
+let network,flow,openings=[],selected=0,seed=43,mode='water',camera='environment',stream=null,detector=null;
 let lastVideoTime=-1,lastInferenceAt=0,running=false,frameID=0,point=null,handEvent={kind:'inactive'};
 let centres=[],view={w:0,h:0,s:1,x:0,y:0,dpr:1};
 const color={water:'#247b8b',air:'#568a70',plant:'#b48148'};
 function setStatus(message,state='idle'){$('status').dataset.state=state;$('statusText').textContent=message;}
-function make(){network=engine.makeNetwork({mode,surface:'wall',seed:seed++});openings=[1,1,1];selected=0;gesture.reset(state);flow=engine.solveFlow(network,openings);updateUi();}
-function setOpening(i,value){if(i<0||i>=3)return;const next=Math.max(0,Math.min(1,Number(value)||0));if(Math.abs(next-openings[i])<.002)return;openings[i]=next;flow=engine.solveFlow(network,openings);selected=i;updateUi();}
-function updateUi(){$('valveName').textContent=`V-${String(selected+1).padStart(2,'0')} / ${network.valves[selected].name} / ${network.valves[selected].role}`;$('openSlider').value=Math.round(openings[selected]*100);$('valueText').textContent=`${Math.round(openings[selected]*100)}%`;$('progressFill').style.width=`${openings[selected]*100}%`;$('flowSummary').textContent=`通水中：${flow.active}系統 / 3系統　（相対流量 ${flow.total.toFixed(2)}）`;}
+function make(){network=engine.makeNetwork({mode,surface:'wall',seed:seed++});openings=network.valves.map(()=>1);selected=0;gesture.reset(state);flow=engine.solveFlow(network,openings);updateUi();}
+function setOpening(i,value){if(!Number.isInteger(i)||i<0||i>=openings.length)return;const next=Math.max(0,Math.min(1,Number(value)||0));if(Math.abs(next-openings[i])<.002)return;openings[i]=next;flow=engine.solveFlow(network,openings);selected=i;updateUi();}
+function updateUi(){$('valveName').textContent=`V-${String(selected+1).padStart(2,'0')} / ${network.valves[selected].name} / ${network.valves[selected].role}`;$('openSlider').value=Math.round(openings[selected]*100);$('valueText').textContent=`${Math.round(openings[selected]*100)}%`;$('progressFill').style.width=`${openings[selected]*100}%`;$('flowSummary').textContent=`通水中：${flow.active}系統 / ${network.terminals.length}系統　（相対流量 ${flow.total.toFixed(2)}）`;}
 function setup(){const bounds=stage.getBoundingClientRect(),w=bounds.width,h=bounds.height,dpr=Math.min(window.devicePixelRatio||1,2);view={w,h,dpr,s:Math.min((w-36)/700,(h-52)/510),x:w*.5,y:h*.52};canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);centres=[];}
 new ResizeObserver(setup).observe(stage);setup();
 function xy(n){return{x:view.x+n.x*view.s,y:view.y+n.y*view.s};}
@@ -103,7 +103,7 @@ for(const [id,kind] of [['rearBtn','environment'],['frontBtn','user']])$(id).add
 $('mode').addEventListener('change',e=>{mode=e.target.value;make();});$('newBtn').addEventListener('click',make);
 $('openSlider').addEventListener('input',e=>setOpening(selected,Number(e.target.value)/100));$('closeValve').addEventListener('click',()=>setOpening(selected,0));$('openValve').addEventListener('click',()=>setOpening(selected,1));
 canvas.addEventListener('pointerup',e=>{const r=canvas.getBoundingClientRect(),p={x:e.clientX-r.left,y:e.clientY-r.top};const i=gesture.nearest(p,centres,55);if(i>=0){selected=i;updateUi();setStatus(`V-0${i+1}を選択しました。スライダーで開度を調整してください。`,'ready');}});
-canvas.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key==='ArrowLeft'){selected=(selected+(e.key==='ArrowRight'?1:2))%3;updateUi();e.preventDefault();}if(e.key==='Enter'){setOpening(selected,openings[selected]>.5?0:1);e.preventDefault();}});
+canvas.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key==='ArrowLeft'){selected=(selected+(e.key==='ArrowRight'?1:openings.length-1))%openings.length;updateUi();e.preventDefault();}if(e.key==='Enter'){setOpening(selected,openings[selected]>.5?0:1);e.preventDefault();}});
 window.addEventListener('pagehide',stop);make();frameID=requestAnimationFrame(draw);
 </script>
 </body>
