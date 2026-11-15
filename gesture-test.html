@@ -88,7 +88,7 @@ function applyHand(result,time){if(!result?.landmarks?.length){point=null;handEv
  if(handEvent.kind==='tracking')setStatus('手を認識中です。バルブのそばでつまむか、手をかざしてください。','ready');
  updateUi();}
 async function begin(){if(running)return;setStatus('カメラを起動しています…');if(!navigator.mediaDevices?.getUserMedia){setStatus('このブラウザはカメラ非対応です。HTTPS環境と権限を確認してください。','error');return;}
- try{stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:camera},width:{ideal:960},height:{ideal:720}}});video.srcObject=stream;video.classList.toggle('selfie',camera==='user');video.style.display='block';await video.play();}catch(err){setStatus(`カメラを開始できません：${err.name||err.message}。手動操作は使えます。`,'error');return;}
+ try{stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:camera},width:{ideal:960},height:{ideal:720}}});video.srcObject=stream;video.classList.toggle('selfie',camera==='user');video.style.display='block';await video.play();}catch(err){stop();setStatus(`カメラを開始できません：${err.name||err.message}。手動操作は使えます。`,'error');return;}
  running=true;$('startBtn').disabled=true;$('stopBtn').disabled=false;
  setStatus('手認識モデルを読み込み中です…（初回は通信が必要）');
  try{
