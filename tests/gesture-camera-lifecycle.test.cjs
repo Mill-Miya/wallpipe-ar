@@ -28,7 +28,7 @@ async function verifyCameraFailure(failureStage){
   camera:'environment',point:null
  };
  const result=await vm.runInNewContext(`(async()=>{
-  let stream=null,running=false,detector=null;
+  let stream=null,running=false,detector=null,cameraSession=0;
   ${beginSource}
   ${stopSource}
   await begin();
@@ -59,7 +59,7 @@ async function verifyCancelledStart(stage){
   setStatus(){},requestAnimationFrame(){draws++;},track(){},point:null
  };
  const pending=vm.runInNewContext(`(async()=>{
-  let stream=null,running=false,detector={};
+  let stream=null,running=false,detector={},cameraSession=0;
   ${beginSource}
   ${stopSource}
   const task=begin();
