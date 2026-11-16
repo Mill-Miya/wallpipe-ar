@@ -43,8 +43,49 @@ async function verifyCameraFailure(failureStage){
  assert.match(status,/カメラを開始できません/,'User should see original startup error');
  assert.equal(stopped,failureStage==='play'?1:0,'Acquired camera track must be stopped on playback failure');
 }
+async function verifyCancelledStart(stage){
+ let resolvePermission,resolvePlayback,stopped=0,draws=0;
+ const streamObject={getTracks(){return [{stop(){stopped++;}}];}};
+ const permission=new Promise(resolve=>{resolvePermission=resolve;});
+ const playback=new Promise(resolve=>{resolvePlayback=resolve;});
+ const video={
+  srcObject:null,style:{display:'none'},classList:{toggle(){}},
+  play(){return stage==='play'?playback:Promise.resolve();}
+ };
+ const controls={startBtn:{disabled:false},stopBtn:{disabled:true}};
+ const sandbox={
+  navigator:{mediaDevices:{getUserMedia(){return stage==='permission'?permission:Promise.resolve(streamObject);}}},
+  video,$:id=>controls[id],gesture:{reset(){}},state:{},camera:'environment',
+  setStatus(){},requestAnimationFrame(){draws++;},track(){},point:null
+ };
+ const pending=vm.runInNewContext(`(async()=>{
+  let stream=null,running=false,detector={};
+  ${beginSource}
+  ${stopSource}
+  const task=begin();
+  await Promise.resolve();
+  stop(); // Simulate pagehide while camera permission or playback is still pending.
+  await Promise.resolve();
+  return {task,read:()=>({stream,running,startDisabled:$('startBtn').disabled,stopDisabled:$('stopBtn').disabled})};
+ })()`,sandbox);
+ const {task,read}=await pending;
+ if(stage==='permission')resolvePermission(streamObject);
+ else resolvePlayback();
+ await task;
+ const result=read();
+ assert.equal(result.running,false,'Cancelled camera startup must not reactivate camera ('+stage+')');
+ assert.equal(result.stream,null,'Cancelled startup must not retain a stream ('+stage+')');
+ assert.equal(video.srcObject,null,'Cancelled startup must not attach video ('+stage+')');
+ assert.equal(video.style.display,'none','Cancelled startup must not show video ('+stage+')');
+ assert.equal(result.startDisabled,false);
+ assert.equal(result.stopDisabled,true);
+ assert.equal(stopped,1,'Late camera acquisition must close its track exactly once ('+stage+')');
+ assert.equal(draws,0,'Cancelled camera startup must not schedule tracking');
+}
 (async()=>{
  await verifyCameraFailure('play');
  await verifyCameraFailure('permission');
+ await verifyCancelledStart('permission');
+ await verifyCancelledStart('play');
  console.log('PASS: camera startup failures release acquired tracks, reset video and controls, preserve error and permit retry');
 })().catch(error=>{console.error(error);process.exitCode=1;});
