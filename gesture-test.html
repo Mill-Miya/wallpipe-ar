@@ -56,7 +56,7 @@ const engine=window.WallPipeEngine, gesture=window.WallPipeGesture;
 const canvas=$('overlay'),ctx=canvas.getContext('2d'),video=$('feed'),stage=$('stage');
 const state=gesture.createState();
 let network,flow,openings=[],selected=0,seed=43,mode='water',camera='environment',stream=null,detector=null;
-let lastVideoTime=-1,lastInferenceAt=0,running=false,frameID=0,point=null,handEvent={kind:'inactive'};
+let lastVideoTime=-1,lastInferenceAt=0,running=false,cameraSession=0,frameID=0,point=null,handEvent={kind:'inactive'};
 let centres=[],view={w:0,h:0,s:1,x:0,y:0,dpr:1};
 const color={water:'#247b8b',air:'#568a70',plant:'#b48148'};
 function setStatus(message,state='idle'){$('status').dataset.state=state;$('statusText').textContent=message;}
@@ -87,8 +87,29 @@ function applyHand(result,time){if(!result?.landmarks?.length){point=null;handEv
  if(handEvent.kind==='release')setStatus('操作を確定しました。','ready');
  if(handEvent.kind==='tracking')setStatus('手を認識中です。バルブのそばでつまむか、手をかざしてください。','ready');
  updateUi();}
-async function begin(){if(running)return;setStatus('カメラを起動しています…');if(!navigator.mediaDevices?.getUserMedia){setStatus('このブラウザはカメラ非対応です。HTTPS環境と権限を確認してください。','error');return;}
- try{stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:camera},width:{ideal:960},height:{ideal:720}}});video.srcObject=stream;video.classList.toggle('selfie',camera==='user');video.style.display='block';await video.play();}catch(err){stop();setStatus(`カメラを開始できません：${err.name||err.message}。手動操作は使えます。`,'error');return;}
+async function begin(){if(running)return;
+ const session=++cameraSession;
+ setStatus('カメラを起動しています…');
+ if(!navigator.mediaDevices?.getUserMedia){setStatus('このブラウザはカメラ非対応です。HTTPS環境と権限を確認してください。','error');return;}
+ try{
+  const acquired=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:camera},width:{ideal:960},height:{ideal:720}}});
+  if(session!==cameraSession){
+   // Permission can resolve after pagehide or a later camera request.
+   for(const track of acquired.getTracks())track.stop();
+   return;
+  }
+  stream=acquired;
+  video.srcObject=stream;
+  video.classList.toggle('selfie',camera==='user');
+  video.style.display='block';
+  await video.play();
+  if(session!==cameraSession)return; // Stop already released the stream during playback.
+ }catch(err){
+  if(session!==cameraSession)return;
+  stop();
+  setStatus(`カメラを開始できません：${err.name||err.message}。手動操作は使えます。`,'error');
+  return;
+ }
  running=true;$('startBtn').disabled=true;$('stopBtn').disabled=false;
  setStatus('手認識モデルを読み込み中です…（初回は通信が必要）');
  try{
@@ -97,7 +118,7 @@ async function begin(){if(running)return;setStatus('カメラを起動してい�
  }catch(err){setStatus(`手認識モデルの読み込みに失敗しました。接続・端末性能を確認してください（${err.message||err.name}）。`,'error');}}
 function track(time){if(!running)return;if(detector&&video.readyState>=2&&video.currentTime!==lastVideoTime&&time-lastInferenceAt>100){lastVideoTime=video.currentTime;lastInferenceAt=time;try{applyHand(detector.detectForVideo(video,time),time);}catch(err){setStatus(`認識エラー：${err.message||err.name}`,'error');}}
  requestAnimationFrame(track);}
-function stop(){running=false;for(const t of stream?.getTracks()||[])t.stop();stream=null;video.srcObject=null;video.style.display='none';$('startBtn').disabled=false;$('stopBtn').disabled=true;point=null;gesture.reset(state);setStatus('カメラ停止。タップとスライダーは利用できます。');}
+function stop(){cameraSession++;running=false;for(const t of stream?.getTracks()||[])t.stop();stream=null;video.srcObject=null;video.style.display='none';$('startBtn').disabled=false;$('stopBtn').disabled=true;point=null;gesture.reset(state);setStatus('カメラ停止。タップとスライダーは利用できます。');}
 $('startBtn').addEventListener('click',begin);$('stopBtn').addEventListener('click',stop);
 for(const [id,kind] of [['rearBtn','environment'],['frontBtn','user']])$(id).addEventListener('click',()=>{camera=kind;$('rearBtn').setAttribute('aria-pressed',String(kind==='environment'));$('frontBtn').setAttribute('aria-pressed',String(kind==='user'));if(running){stop();begin();}});
 $('mode').addEventListener('change',e=>{mode=e.target.value;make();});$('newBtn').addEventListener('click',make);
