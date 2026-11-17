@@ -227,3 +227,10 @@ Webアプリ: https://mill-miya.github.io/wallpipe-ar/
 - 3Dバルブ番号を表示し、スマホで操作パネルを開かなくてもAR開始・配管配置ができます。
 - 自動テストは `tests/hand-screen-map.test.cjs` に追加しました。設計上の制約と実機確認項目は `docs/ar-hand-qa.md` を参照してください。
 - iPhone実機での追跡精度、手の重なり、誤認識、性能は未検証です。平面検出や真の手との3D接触判定ではありません。
+
+
+## Creator
+
+<a href="https://github.com/Mill-Miya"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/brand/r-logo-white.svg"><img src="assets/brand/r-logo-black.svg" alt="Mill-Miya R logo" width="44"></picture></a>
+
+Created by [Mill-Miya](https://github.com/Mill-Miya). This attribution is separate from the WallPipe AR project identity.
