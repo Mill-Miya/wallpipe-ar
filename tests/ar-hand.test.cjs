@@ -13,6 +13,10 @@ function failIfMissing(strings,body,where){for(const s of strings)assert.ok(body
 failIfMissing(['@8thwall/engine-binary@1','three.module.js','js/ar-hand.js','XR Engineライセンス','arCanvas','id="place"','id="start"'],page,'HTML');
 failIfMissing(['XR8.Threejs.xrScene','XR8.XrController.updateCameraProjectionMatrix','scale:\'absolute\'','onAttach:({video:sourceVideo,stream:sourceStream})','detectForVideo(video,now)','anchor.position.copy','anchor.rotation.set','anchor.localToWorld','Gestures.step','Engine.solveFlow'],app,'AR integration');
 failIfMissing(['id="quickAction"','id="handTransform"','id="handRetry"','js/hand-screen-map.js','js/tracking-gate.js'],page,'Alignment and quick launch');
+// The floating AR shortcut is only available when the mobile controls panel is collapsed.
+assert(/@media\(max-width:720px\)\{\.panel:not\(\.is-collapsed\)~#quickAction\{display:none!important\}\}/.test(page),'Expanded mobile panel must hide the floating AR quick action');
+assert(page.indexOf('id="panel"')<page.indexOf('id="quickAction"'),'CSS sibling rule requires the panel before the quick action');
+assert(page.indexOf('id="start" class="btn primary"')>page.indexOf('id="panel"'),'Expanded panel retains its own AR start button');
 failIfMissing(['HandMap.mapLandmarks','TrackingGate.update','addValveLabel','updateQuickAction','onDetach:()=>','video.videoWidth','junctionShape','jointRadius','visibilitychange','handInitFailed'],app,'Tracking, cleanup, and hand alignment');
 assert(app.includes("if(video&&!landmarker&&!loadingHand)initializeHandTracking()"),'Hand model should initialize after placement');
 assert(!app.includes("onAttach:({video:sourceVideo})=>{video=sourceVideo||null;initializeHandTracking()"),'Do not start MediaPipe before AR placement');
