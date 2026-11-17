@@ -63,6 +63,8 @@ details{font-size:12px;line-height:1.7;color:#56676b;margin-top:13px}summary{cur
  #stage.ar-placed~#info{bottom:calc(70px + env(safe-area-inset-bottom));left:8px;right:8px;font-size:10px;max-height:44px;overflow:hidden;box-shadow:none}
  #stage.ar-placed~#handHud{top:calc(58px + env(safe-area-inset-top));max-width:min(250px,calc(100vw - 24px));background:#f7f8f4d9}
 }
+/* Mobile: hide the floating AR shortcut while the controls panel is expanded. */
+@media(max-width:720px){.panel:not(.is-collapsed)~#quickAction{display:none!important}}
 </style>
 <!-- 8th Wall binary: Copyright © 2026 Niantic Spatial, Inc. License: https://github.com/8thwall/engine/blob/main/LICENSE -->
 <script src="https://cdn.jsdelivr.net/npm/@8thwall/xrextras@1/dist/xrextras.js" crossorigin="anonymous"></script>
