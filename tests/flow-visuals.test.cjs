@@ -17,7 +17,7 @@ let disposed=0;
 class Geo{dispose(){disposed++;}}
 class Mat{constructor(opts){Object.assign(this,opts);}dispose(){disposed++;}}
 class Group{
- constructor(){this.children=[];this.position=new Vec();this.visible=true;this.parent=null;}
+ constructor(){this.children=[];this.position=new Vec();this.visible=true;this.parent=null;this.quaternion={setFromUnitVectors:(a,b)=>{this.outletDirection=b.clone();}};}
  add(x){this.children.push(x);x.parent=this;}
  remove(x){this.children=this.children.filter(c=>c!==x);x.parent=null;}
 }
@@ -38,6 +38,18 @@ for(let seed=1;seed<=240;seed++){
  const names=Flow.describeOutlets(n);
  assert.equal(names.length,n.valves.length);
  assert.equal(new Set(names.map(x=>x.nodeId)).size,n.valves.length);
+ // Every water outlet is a genuine downward-facing nozzle after an offset elbow.
+ // The terminal node and its final edge are the single source of visual truth.
+ for(let i=0;i<n.terminals.length;i++){
+  const t=n.terminals[i],last=n.edges[t.outletEdgeId],end=n.nodes[t.nodeId],from=n.nodes[last?.a];
+  const valveEnd=n.nodes[n.edges[n.valves[i].edgeId].b];
+  assert(last&&from&&last.b===t.nodeId,'Terminal must identify its actual last physical pipe edge');
+  assert.equal(from.x,end.x,'Final outlet pipe must be vertical');
+  assert(end.y>from.y,'Final outlet on a wall must point downward');
+  assert.notEqual(end.x,valveEnd.x,'Fixture must exit at the offset L-tail, not directly under its valve');
+  assert.equal(names[i].outletEdgeId,t.outletEdgeId);
+  assert(Math.abs(names[i].direction.x)<1e-9&&Math.abs(names[i].direction.y+1)<1e-9);
+ }
  const baseline=Engine.solveFlow(n,n.valves.map(()=>1)).terminalFlows;
  assert(baseline.every(f=>f>1e-6),'Each fixture must have real solver flow when all valves open');
  const parent=new Group();
@@ -45,17 +57,30 @@ for(let seed=1;seed<=240;seed++){
  assert.equal(v.outlets.length,n.terminals.length,'Every fixture must own a distinct water jet');
  assert.equal(v.barMarkers.length,n.edges.length,'Every pipe edge has a moving flow bar');
  assert.equal(new Set(v.outlets.map(o=>o.column)).size,n.terminals.length,'No shared terminal emitter');
+ for(let i=0;i<v.outlets.length;i++){
+  const t=n.terminals[i],end=point(n.nodes[t.nodeId],.06),o=v.outlets[i];
+  assert(Math.abs(o.group.position.x-end.x)<1e-9,'Water jet must align with the L-tail outlet X');
+  assert(Math.abs(o.group.position.y-(end.y-.019))<1e-9,'Water jet starts just beyond the final pipe nozzle');
+  assert(Math.abs(o.group.position.z-end.z)<1e-9,'Water jet must share the pipe center depth');
+  assert.equal(o.group.outletDirection.y,-1,'Water jet must flow out along the last pipe direction');
+ }
  const all=Engine.solveFlow(n,n.valves.map(()=>1));
  v.sync(all);
  assert(v.outlets.every(x=>x.group.visible),'All three water outlets must run when all valves are open');
  assert(v.outlets.every(x=>x.length>.2),'Full-flow jets should be visually substantial');
  v.animate(1000);barChecks+=v.barMarkers.filter(m=>m.mesh.visible).length;
+ for(const t of n.terminals){
+  assert.equal(v.barMarkers.find(b=>b.edge.id===t.outletEdgeId).mesh.visible,true,'Last elbow tail must show flow while outlet is open');
+ }
  assert(barChecks>0,'Traveling flow bars should be visible');
  for(let closed=0;closed<n.valves.length;closed++){
   const op=n.valves.map((_,i)=>i===closed?0:1);
   const actual=Engine.solveFlow(n,op);
   const states=v.sync(actual);
+  v.animate(1400);
   assert.equal(states.filter(x=>x.visible).length,n.valves.length-1);
+  const stopped=v.barMarkers.find(b=>b.edge.id===n.terminals[closed].outletEdgeId);
+  assert.equal(stopped.mesh.visible,false,'Closing a valve must also stop flow in its final L-tail');
   for(let i=0;i<n.valves.length;i++){
    assert.equal(v.outlets[i].group.visible,i!==closed,'Only the corresponding faucet may stop');
    assert.equal(v.outlets[i].index,i);
