@@ -71,27 +71,35 @@
         const tee=node(xs[i],headerY);
         edge(prev,tee,'supply',[23,20,17][i]);prev=tee;
         const endY=fixtureYs[i]+offset(12);
-        const valveStartY=Math.round(headerY+(endY-headerY)*.59);
-        const valveEndY=Math.round(headerY+(endY-headerY)*.88);
-        const before=node(xs[i],valveStartY),after=node(xs[i],valveEndY),endPipe=node(xs[i],endY);
+        // Leave a visible tail below the valve: the water must travel through
+        // its offset elbow and *last downward pipe* before leaving the outlet.
+        const valveStartY=Math.round(headerY+(endY-headerY)*.37);
+        const valveEndY=Math.round(headerY+(endY-headerY)*.67);
+        const before=node(xs[i],valveStartY),after=node(xs[i],valveEndY);
         edge(tee,before,'branch',13);
         valve(before,after,'止水バルブ',names[i]+'系統・点検位置',13);
-        // An offset service tail is a real elbow arrangement, not a
-        // jittered drawing. The branch stays downstream of its own stop valve.
-        const sideRoute=random()<.67;
-        const fixtureX=xs[i]+(sideRoute?choose([-1,1])*Math.round(between(30,65)):offset(22));
-        let terminal=endPipe;
-        if(sideRoute){
-          const elbowY=Math.round(valveEndY+(endY-valveEndY)*.55);
-          const knee=node(xs[i],elbowY),turn=node(fixtureX,elbowY);
-          edge(after,knee,'branch',13);edge(knee,turn,'branch',12);
-          terminal=node(fixtureX,endY);edge(turn,terminal,'branch',12);
-        }else{
-          edge(after,endPipe,'branch',13);
-          if(fixtureX!==xs[i]){terminal=node(fixtureX,endY);edge(endPipe,terminal,'branch',12);}
+        const fixtureX=xs[i]+choose([-1,1])*Math.round(between(45,75));
+        const elbowY=Math.round(valveEndY+(endY-valveEndY)*between(.17,.30));
+        const knee=node(xs[i],elbowY),turn=node(fixtureX,elbowY);
+        edge(after,knee,'branch',13);
+        // Optional straight couplings retain several seeded topology families;
+        // none of them skip the elbow or end with a sideways-facing outlet.
+        const tailProfile=Math.floor(random()*3);
+        let horizontalStart=knee;
+        if(tailProfile>=1){
+          const mid=node(Math.round((xs[i]+fixtureX)/2),elbowY);
+          edge(knee,mid,'branch',12);horizontalStart=mid;
         }
+        edge(horizontalStart,turn,'branch',12);
+        let verticalStart=turn;
+        if(tailProfile===2){
+          const mid=node(fixtureX,Math.round((elbowY+endY)/2));
+          edge(turn,mid,'branch',12);verticalStart=mid;
+        }
+        const terminal=node(fixtureX,endY);
+        const outletEdgeId=edge(verticalStart,terminal,'branch',12);
         targets.push(terminal);
-        terminals.push({label:names[i],nodeId:terminal,kind:'fixture',valveIndex:i});
+        terminals.push({label:names[i],nodeId:terminal,kind:'fixture',valveIndex:i,outletEdgeId});
       }
     } else if (mode==='air') {
       // Direct-return hydronic system: feed header and return header, three terminal coils.
