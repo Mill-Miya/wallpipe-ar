@@ -15,7 +15,16 @@
   return network.terminals.map((terminal,index)=>{
    const n=network.nodes[terminal.nodeId];
    if(!n)throw new Error('Outlet is missing network node '+terminal.nodeId);
-   return Object.freeze({index,nodeId:terminal.nodeId,valveIndex:terminal.valveIndex,label:terminal.label,x:n.x,y:n.y});
+   // The outlet pose belongs to the final physical pipe, not the valve.
+   // A water fixture must have an explicit final edge ending at its nozzle.
+   const edge=Number.isInteger(terminal.outletEdgeId)?network.edges[terminal.outletEdgeId]:null;
+   if(terminal.kind==='fixture'&&(!edge||edge.b!==terminal.nodeId))throw new Error('Water outlet must end on a physical pipe edge');
+   const previous=edge&&network.nodes[edge.a];
+   const dx=previous?n.x-previous.x:0,dy=previous?previous.y-n.y:0;
+   const length=Math.hypot(dx,dy);
+   if(terminal.kind==='fixture'&&length<1)throw new Error('Water outlet has no defined pipe direction');
+   const direction=length?Object.freeze({x:dx/length,y:dy/length,z:0}):null;
+   return Object.freeze({index,nodeId:terminal.nodeId,valveIndex:terminal.valveIndex,label:terminal.label,x:n.x,y:n.y,outletEdgeId:terminal.outletEdgeId,direction});
   });
  }
  function outletStates(summary,baseline,mode='water'){
@@ -67,8 +76,14 @@
   const outlets=[];
   if(mode==='water'){
    for(const d of descriptors){
-    const p=point(network.nodes[d.nodeId],.085);
-    const group=new THREE.Group();group.name='water-outlet-'+d.index;group.position.copy(p);root.add(group);
+    // Place the jet just beyond the terminal flange along its last pipe's
+    // outward direction. The local -Y axis points out of the nozzle.
+    const direction=new THREE.Vector3(d.direction.x,d.direction.y,d.direction.z);
+    const p=point(network.nodes[d.nodeId],.06).addScaledVector(direction,.019);
+    const group=new THREE.Group();group.name='water-outlet-'+d.index;
+    group.position.copy(p);
+    group.quaternion.setFromUnitVectors(new THREE.Vector3(0,-1,0),direction);
+    root.add(group);
     const jetMat=new THREE.MeshBasicMaterial({color:waterColor,transparent:true,opacity:.65,depthWrite:false,side:THREE.DoubleSide});
     const column=new THREE.Mesh(jetGeo,jetMat);column.name='water-column-'+d.index;group.add(column);
     const streaks=[];
@@ -94,7 +109,7 @@
     o.length=state.length;
     o.strength=state.strength;
     o.column.scale.set(state.width,state.length,state.width);
-    o.column.position.y=-state.length*.5-.019;
+    o.column.position.y=-state.length*.5;
     o.material.opacity=state.opacity;
    }
    return states;
