@@ -56,6 +56,12 @@ for(let seed=1;seed<=240;seed++){
  const v=Flow.create({THREE,network:n,parent,point,mode:'water',baseline});
  assert.equal(v.outlets.length,n.terminals.length,'Every fixture must own a distinct water jet');
  assert.equal(v.barMarkers.length,n.edges.length,'Every pipe edge has a moving flow bar');
+ assert.equal(v.coreMarkers.length,n.edges.filter(edge=>edge.valveIndex<0).length,'All real water pipes have a visible inner fluid core');
+ for(const core of v.coreMarkers){
+  assert.equal(core.a.z,.06);assert.equal(core.b.z,.06);
+  assert.equal(core.mesh.renderOrder,3,'Water core is drawn before moving pulses and translucent front shell');
+  assert(core.length>0);
+ }
  for(const m of v.barMarkers){
   assert.equal(m.a.z,.06,'Water begins on the pipe centerline');
   assert.equal(m.b.z,.06,'Water ends on the pipe centerline');
@@ -74,6 +80,7 @@ for(let seed=1;seed<=240;seed++){
  assert(v.outlets.every(x=>x.group.visible),'All three water outlets must run when all valves are open');
  assert(v.outlets.every(x=>x.length>.2),'Full-flow jets should be visually substantial');
  v.animate(1000);barChecks+=v.barMarkers.filter(m=>m.mesh.visible).length;
+ assert(v.coreMarkers.every(c=>c.mesh.visible),'Full flow must fill all pipe interior cores');
  for(const t of n.terminals){
   assert.equal(v.barMarkers.find(b=>b.edge.id===t.outletEdgeId).mesh.visible,true,'Last elbow tail must show flow while outlet is open');
  }
@@ -86,6 +93,8 @@ for(let seed=1;seed<=240;seed++){
   assert.equal(states.filter(x=>x.visible).length,n.valves.length-1);
   const stopped=v.barMarkers.find(b=>b.edge.id===n.terminals[closed].outletEdgeId);
   assert.equal(stopped.mesh.visible,false,'Closing a valve must also stop flow in its final L-tail');
+  const stoppedCore=v.coreMarkers.find(c=>c.edge.id===n.terminals[closed].outletEdgeId);
+  assert.equal(stoppedCore.mesh.visible,false,'Closing valve stops continuous fluid in its own outlet pipe');
   for(let i=0;i<n.valves.length;i++){
    assert.equal(v.outlets[i].group.visible,i!==closed,'Only the corresponding faucet may stop');
    assert.equal(v.outlets[i].index,i);
@@ -95,8 +104,9 @@ for(let seed=1;seed<=240;seed++){
  const partial=Engine.solveFlow(n,[.25,1,1]);
  const states=v.sync(partial);
  assert(states[0].length<v.sync(all)[0].length,'Partially opened valve must have shorter stream');
- const zero=Engine.solveFlow(n,[0,0,0]);v.sync(zero);
+ const zero=Engine.solveFlow(n,[0,0,0]);v.sync(zero);v.animate(1800);
  assert(v.outlets.every(x=>!x.group.visible),'All closed means no water');
+ assert(v.coreMarkers.every(c=>!c.mesh.visible),'All closed means no interior flow');
  v.dispose();
  assert.equal(parent.children.length,0,'Disposed flow visuals must leave AR anchor');
  scans++;
@@ -106,6 +116,7 @@ for(const mode of ['air','plant']){
  const baseline=Engine.solveFlow(n,n.valves.map(()=>1)).terminalFlows;
  const holder=new Group(),v=Flow.create({THREE,network:n,parent:holder,point,mode,baseline,baseColor:0x368d74});
  assert.equal(v.outlets.length,0,'Only supply-water mode has open faucet jets');
+ assert.equal(v.coreMarkers.length,0,'Only water mode uses the interior X-ray flow');
  assert(v.barMarkers.some(m=>m.a.z>.06),'Air/factory keep visible external tracers behind opaque walls');
  assert.equal(v.barMarkers.length,n.edges.length,'Industrial / HVAC visual bars still exist');
  v.sync(Engine.solveFlow(n,n.valves.map(()=>1)));v.animate(700);
