@@ -50,7 +50,8 @@
   if(ref.length!==descriptors.length)throw new Error('Baseline must match terminal count');
   const root=new THREE.Group();root.name='wallpipe-flow-bars-and-outlets';
   parent.add(root);
-  const barGeo=new THREE.CylinderGeometry(.008,.008,1,10,1,false);
+  const coreRadius=mode==='water'?.006:.008;
+  const barGeo=new THREE.CylinderGeometry(coreRadius,coreRadius,1,10,1,false);
   const jetGeo=new THREE.CylinderGeometry(.015,.019,1,12,1,true);
   const streakGeo=new THREE.CylinderGeometry(.005,.005,1,8,1,false);
   const pathMat=new THREE.MeshBasicMaterial({color:baseColor,transparent:true,opacity:.86,depthWrite:false,side:THREE.DoubleSide});
@@ -61,13 +62,13 @@
   for(const edge of network.edges){
    const a=point(network.nodes[edge.a]),b=point(network.nodes[edge.b]);
    const r=clamp(edge.diameter*.00172,.014,.052);
-   // Rendering on the near pipe surface instead of inside opaque metal
-   // keeps the short traveling bars visible in the AR world view.
-   a.z+=r+.009;b.z+=r+.009;
+   // Water flows inside the hollow pipe. Opaque HVAC/factory shells retain surface tracers.
+   if(mode!=='water'){a.z+=r+.009;b.z+=r+.009;}
    const difference=new THREE.Vector3().subVectors(b,a),length=difference.length();
    if(length<=.0001)continue;
    const marker=new THREE.Mesh(barGeo,pathMat);
    marker.name='flow-path-'+edge.id;
+   if(mode==='water')marker.renderOrder=4; // blend beneath translucent front
    marker.quaternion.setFromUnitVectors(up,difference.clone().normalize());
    marker.scale.y=Math.min(.10,Math.max(.025,length*.24));
    marker.visible=false;root.add(marker);
@@ -85,11 +86,12 @@
     group.quaternion.setFromUnitVectors(new THREE.Vector3(0,-1,0),direction);
     root.add(group);
     const jetMat=new THREE.MeshBasicMaterial({color:waterColor,transparent:true,opacity:.65,depthWrite:false,side:THREE.DoubleSide});
-    const column=new THREE.Mesh(jetGeo,jetMat);column.name='water-column-'+d.index;group.add(column);
+    const column=new THREE.Mesh(jetGeo,jetMat);column.name='water-column-'+d.index;column.renderOrder=6;group.add(column);
     const streaks=[];
     for(let i=0;i<2;i++){
      const stripe=new THREE.Mesh(streakGeo,streakMat);
      stripe.name='water-highlight-'+d.index+'-'+i;
+     stripe.renderOrder=7;
      stripe.position.z=.013;
      stripe.scale.y=.041;
      group.add(stripe);streaks.push(stripe);
