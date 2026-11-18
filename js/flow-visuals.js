@@ -48,6 +48,11 @@
   const descriptors=describeOutlets(network);
   const ref=Array.isArray(baseline)?baseline:descriptors.map(()=>1);
   if(ref.length!==descriptors.length)throw new Error('Baseline must match terminal count');
+  // Use the very same fitting plan as the authored GLB pipes. Raw node-to-node
+  // cylinders would pass through the curved elbows instead of following them.
+  const layout=mode==='water'?globalThis.WallPipePipeLayout?.plan(network):null;
+  if(mode==='water'&&!layout)throw new Error('Water flow requires the authored pipe layout planner');
+  const spans=layout?new Map(layout.spans.map(span=>[span.edgeId,span])):null;
   const root=new THREE.Group();root.name='wallpipe-flow-bars-and-outlets';
   parent.add(root);
   const coreRadius=mode==='water'?.006:.008;
@@ -63,10 +68,12 @@
   }):null;
   const waterColor=mode==='water'?0x48bfe0:baseColor;
   const streakMat=new THREE.MeshBasicMaterial({color:0xc8f3fb,transparent:true,opacity:.84,depthWrite:false,side:THREE.DoubleSide});
-  const barMarkers=[],coreMarkers=[];
+  const barMarkers=[],coreMarkers=[],bendMarkers=[],bendGeometries=[];
   const up=new THREE.Vector3(0,1,0);
   for(const edge of network.edges){
-   const a=point(network.nodes[edge.a]),b=point(network.nodes[edge.b]);
+   const span=spans?.get(edge.id);
+   const a=span?new THREE.Vector3(span.a.x,span.a.y,span.a.z):point(network.nodes[edge.a]);
+   const b=span?new THREE.Vector3(span.b.x,span.b.y,span.b.z):point(network.nodes[edge.b]);
    const r=clamp(edge.diameter*.00172,.014,.052);
    // Water flows inside the hollow pipe. Opaque HVAC/factory shells retain surface tracers.
    if(mode!=='water'){a.z+=r+.009;b.z+=r+.009;}
@@ -76,7 +83,9 @@
    marker.name='flow-path-'+edge.id;
    if(mode==='water')marker.renderOrder=4; // blend beneath translucent front
    marker.quaternion.setFromUnitVectors(up,difference.clone().normalize());
-   marker.scale.y=Math.min(.10,Math.max(.025,length*.24));
+   marker.scale.y=mode==='water'
+    ?Math.min(.075,Math.max(.006,length*.21),length*.60)
+    :Math.min(.10,Math.max(.025,length*.24));
    marker.visible=false;root.add(marker);
    barMarkers.push({edge,a,b,length,mesh:marker});
    if(fluidGeo&&edge.valveIndex<0){
@@ -88,6 +97,49 @@
     core.renderOrder=3;
     core.visible=false;root.add(core);
     coreMarkers.push({edge,a,b,length,mesh:core});
+   }
+  }
+  if(layout){
+   // Elbow meshes use a quarter-circle of radius 2.45 times pipe radius.
+   // Build the exact same centerline, not a quadratic approximation through
+   // the node (which would put visible water outside the hollow bend).
+   class ElbowCurve extends THREE.Curve{
+    constructor(center,x,y,radius){
+     super();this.center=center;this.x=x;this.y=y;this.radius=radius;
+    }
+    getPoint(t,target=new THREE.Vector3()){
+     const angle=-Math.PI/2+clamp(t,0,1)*Math.PI/2;
+     return target.copy(this.center)
+      .addScaledVector(this.x,this.radius*Math.cos(angle))
+      .addScaledVector(this.y,this.radius*Math.sin(angle));
+    }
+    getTangentAt(t,target=new THREE.Vector3()){
+     const angle=-Math.PI/2+clamp(t,0,1)*Math.PI/2;
+     return target.copy(this.x).multiplyScalar(-Math.sin(angle))
+      .addScaledVector(this.y,Math.cos(angle)).normalize();
+    }
+   }
+   for(const f of layout.fittings){
+    if(f.type!=='elbow')continue;
+    const adjacent=network.edges.find(e=>e.id===f.portIds[0]);
+    if(!adjacent)continue;
+    const n=point(network.nodes[f.nodeId]);
+    const x=new THREE.Vector3(f.x.x,-f.x.y,0);
+    const y=new THREE.Vector3(f.y.x,-f.y.y,0);
+    const radius=f.shoulder,center=n.clone()
+     .addScaledVector(x,-radius).addScaledVector(y,radius);
+    const curve=new ElbowCurve(center,x,y,radius);
+    const geometry=new THREE.TubeGeometry(curve,20,.010,10,false);
+    bendGeometries.push(geometry);
+    const core=new THREE.Mesh(geometry,fluidMat);
+    core.name='flow-elbow-core-'+f.nodeId;
+    core.renderOrder=3;core.visible=false;root.add(core);
+    const marker=new THREE.Mesh(barGeo,pathMat);
+    marker.name='flow-elbow-pulse-'+f.nodeId;
+    marker.renderOrder=4;
+    marker.scale.y=Math.min(.045,radius*.52);
+    marker.visible=false;root.add(marker);
+    bendMarkers.push({nodeId:f.nodeId,edge:adjacent,curve,radius,core,mesh:marker});
    }
   }
   const outlets=[];
@@ -145,8 +197,27 @@
     if(!entry.mesh.visible)continue;
     const speed=clamp(.28+Math.sqrt(Math.abs(flow))*1.5,.28,1.4);
     const progress=((t*speed+entry.edge.id*.213)%1+1)%1;
-    const p=flow>=0?progress:1-progress;
-    entry.mesh.position.copy(entry.a).lerp(entry.b,p);
+    const forward=flow>=0?progress:1-progress;
+    if(mode==='water'){
+     // Keep both pulse endpoints inside the trimmed straight pipe span.
+     const padding=Math.min(.49,(entry.mesh.scale.y*.5+.001)/entry.length);
+     entry.mesh.position.copy(entry.a).lerp(entry.b,padding+(1-2*padding)*forward);
+    }else entry.mesh.position.copy(entry.a).lerp(entry.b,forward);
+   }
+   for(const elbow of bendMarkers){
+    const flow=elbow.edge.flow;
+    const live=Number.isFinite(flow)&&Math.abs(flow)>0.0001;
+    elbow.core.visible=live;elbow.mesh.visible=live;
+    if(!live)continue;
+    const speed=clamp(.28+Math.sqrt(Math.abs(flow))*1.5,.28,1.4);
+    const progress=((t*speed+elbow.nodeId*.217)%1+1)%1;
+    // The route is built from port 0 to port 1. Derive the solver direction
+    // from port 0 so animation cannot reverse when edge IDs are reordered.
+    const enters=elbow.edge.b===elbow.nodeId?flow>0:flow<0;
+    const pad=Math.min(.42,(elbow.mesh.scale.y*.5+.001)/(Math.PI/2*elbow.radius));
+    const u=pad+(1-2*pad)*(enters?progress:1-progress);
+    elbow.mesh.position.copy(elbow.curve.getPoint(u));
+    elbow.mesh.quaternion.setFromUnitVectors(up,elbow.curve.getTangentAt(u));
    }
    for(const outlet of outlets){
     if(!outlet.group.visible)continue;
@@ -164,12 +235,13 @@
    root.parent?.remove(root);
    for(const entry of barMarkers)entry.mesh.visible=false;
    for(const entry of coreMarkers)entry.mesh.visible=false;
+   for(const entry of bendMarkers){entry.core.visible=false;entry.mesh.visible=false;}
    for(const o of outlets)o.group.visible=false;
-   for(const g of [barGeo,fluidGeo,jetGeo,streakGeo])g?.dispose();
+   for(const g of [barGeo,fluidGeo,jetGeo,streakGeo,...bendGeometries])g?.dispose();
    for(const m of [pathMat,fluidMat,streakMat,...outlets.map(o=>o.material)])m?.dispose();
   }
   return Object.freeze({
-   root,barMarkers,coreMarkers,outlets,descriptors,baseline:[...ref],
+   root,barMarkers,coreMarkers,bendMarkers,outlets,descriptors,baseline:[...ref],
    sync,animate,dispose,getStates:()=>lastStates
   });
  }
