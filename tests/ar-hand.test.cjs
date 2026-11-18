@@ -44,8 +44,8 @@ assert(page.includes('width:100vw!important')&&page.includes('height:100dvh!impo
  // and visible diagnostics are required before claiming AR hand usability.
 failIfMissing(['id="handHud"','id="placeScale"','id="placeDistance"','value="1.3"','value="1.85"'],page,'AR viewport and hand visibility');
 failIfMissing(['handStatus','ownedVideo.srcObject=sourceStream','anchor.scale.setScalar(Number(ui.scale.value))','ui.scale.disabled=false','lastInference=now'],app,'Hand feed and placement scale');
-assert(page.includes('v0.10.0'),'AR X-ray water core release marker must match');
-assert(page.includes('flow-visuals.js?rev=20261118-xray2')&&page.includes('pipe-assets.js?rev=20261118-xray2')&&page.includes('ar-hand.js?rev=20261118-xray2'),'Updated AR assets must bypass stale Safari cache');
+assert(page.includes('v0.10.1'),'AR bend-aware water flow release marker must match');
+assert(page.includes('flow-visuals.js?rev=20261118-bend1')&&page.includes('pipe-assets.js?rev=20261118-bend1')&&page.includes('ar-hand.js?rev=20261118-bend1'),'Updated AR assets must bypass stale Safari cache');
 failIfMissing(['id="handOcclusion"','id="handOcclusionToggle"','js/hand-depth-mask.js'],page,'Hand foreground overlay UI');
 assert(page.includes('#stage.ar-placed~#preview'),'Placed AR should hide intrusive instruction');
 assert(page.includes('[data-alert="error"]'),'Asset error must remain visible after placement');
