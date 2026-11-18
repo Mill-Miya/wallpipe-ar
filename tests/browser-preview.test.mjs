@@ -26,6 +26,8 @@ const waitReady=async (name)=>{
 try{
  await page.goto('http://127.0.0.1:8765/pipe-preview.html',{waitUntil:'domcontentloaded',timeout:40000});
  await waitReady('initial water');
+ assert.equal(consoleErrors.filter(s=>/WebGLProgram|Shader Error|VALIDATE_STATUS|shader compile/i.test(s)).length,0,
+  'Water front-shell shader must compile in Chromium WebGL: '+consoleErrors.join(' / '));
  await page.locator('button[data-mode="air"]').click();
  await waitReady('HVAC');
  await page.locator('button[data-mode="plant"]').click();
