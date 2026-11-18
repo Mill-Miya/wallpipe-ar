@@ -3,7 +3,7 @@ const fs=require('node:fs');
 const assert=require('node:assert/strict');
 const home=fs.readFileSync('index.html','utf8');
 const ar=fs.readFileSync('ar-hand.html','utf8');
-assert(home.includes('href="./ar-hand.html"'),'AR page must be primary entry');
+assert(home.includes('href="./ar-hand.html?rev=20261118-xray2"'),'AR entry must link to current cache-busted release');
 assert(!home.includes('getUserMedia('),'Home must not start an unrelated 2D camera');
 assert(!home.includes('2D 模式図'),'Old 2D simulation must not be promoted on home');
 assert(!home.includes('KITZ')&&!home.includes('キッツ'),'Home must have no company-specific wording');
