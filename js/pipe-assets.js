@@ -59,6 +59,52 @@ function mesh(group,geometry,material,position,scale,quaternion){
  else if(scale)part.scale.copy(scale);
  part.receiveShadow=true;group.add(part);return part;
 }
+// The water pipe is cut along its centerline in the model's +Z lever direction.
+// Rear geometry remains opaque, front geometry is translucent. The split plane
+// follows the world-anchored assembly, not the viewer's changing camera.
+function makeWaterCutaway(root,owned){
+ const plane=new THREE.Vector4(),origin=new THREE.Vector3(),forward=new THREE.Vector3();
+ const cache=new WeakMap();
+ function updatePlane(){
+  origin.set(0,0,.06);
+  root.localToWorld(origin);
+  forward.set(0,0,1).transformDirection(root.matrixWorld);
+  plane.set(forward.x,forward.y,forward.z,-forward.dot(origin));
+ }
+ function materialFor(base,half){
+  let parts=cache.get(base);
+  if(!parts){parts={};cache.set(base,parts);}
+  if(parts[half])return parts[half];
+  const front=half==='front',m=base.clone();
+  m.name='water-xray-'+half;
+  m.side=THREE.DoubleSide;
+  m.transparent=front;
+  m.opacity=front?.33:1;
+  m.depthWrite=!front;
+  m.depthTest=true;
+  m.onBeforeCompile=shader=>{
+   shader.uniforms.wallpipeCutPlane={value:plane};
+   shader.vertexShader='varying vec3 vWallpipeWorld;\n'+shader.vertexShader;
+   shader.vertexShader=shader.vertexShader.replace('#include <worldpos_vertex>',
+     '#include <worldpos_vertex>\nvWallpipeWorld=(modelMatrix*vec4(transformed,1.0)).xyz;');
+   shader.fragmentShader='uniform vec4 wallpipeCutPlane;\nvarying vec3 vWallpipeWorld;\n'+shader.fragmentShader;
+   shader.fragmentShader=shader.fragmentShader.replace('#include <clipping_planes_fragment>',
+     '#include <clipping_planes_fragment>\nif(dot(wallpipeCutPlane.xyz,vWallpipeWorld)+wallpipeCutPlane.w '+(front?'<':'>=')+' 0.0) discard;');
+  };
+  m.customProgramCacheKey=()=> 'water-xray-'+half+'-v1';
+  parts[half]=m;owned.push(m);return m;
+ }
+ function shell(group,geometry,material,position,scale,quaternion){
+  const back=mesh(group,geometry,materialFor(material,'back'),position,scale,quaternion);
+  back.name='xray-opaque-back';
+  back.onBeforeRender=updatePlane;
+  const front=mesh(group,geometry,materialFor(material,'front'),position,scale,quaternion);
+  front.name='xray-lever-side-shell';
+  front.renderOrder=5;
+  front.onBeforeRender=updatePlane;
+ }
+ return {shell};
+}
 const aligned=dir=>new THREE.Quaternion().setFromUnitVectors(UP,dir.clone().normalize());
 function basis(x,y){
  const z=x.clone().cross(y).normalize();
@@ -68,7 +114,9 @@ function basis(x,y){
 export async function createPipeAssembly(network,{mode='water',scale=.00265,maxSupports=4}={}){
  const kit=await loadKit();
  const graph=plan(network,scale),root=new THREE.Group();root.name='pipe-authored-assembly';
- const mats=materials(mode,network.palette),connections=new Map();
+ const mats=materials(mode,network.palette),connections=new Map(),cutawayMaterials=[];
+ const cutaway=mode==='water'?makeWaterCutaway(root,cutawayMaterials):null;
+ const pipeShell=(geo,mat,pos,scale,q)=>cutaway?cutaway.shell(root,geo,mat,pos,scale,q):mesh(root,geo,mat,pos,scale,q);
  for(const edge of network.edges){if(edge.valveIndex>=0)continue;
   for(const id of [edge.a,edge.b]){if(!connections.has(id))connections.set(id,[]);connections.get(id).push(edge);}
  }
@@ -77,7 +125,7 @@ export async function createPipeAssembly(network,{mode='water',scale=.00265,maxS
   if(span.length<.0001)continue;
   const a=v(span.a),b=v(span.b),dir=b.clone().sub(a),length=dir.length();
   const q=aligned(dir),m=span.paintIndex>=0&&mats.lanes.length?mats.lanes[span.paintIndex%mats.lanes.length]:(mats[span.kind]||mats.branch);
-  mesh(root,kit.get('straight_shell'),m,a.clone().add(b).multiplyScalar(.5),new THREE.Vector3(span.r,length/2,span.r),q);
+  pipeShell(kit.get('straight_shell'),m,a.clone().add(b).multiplyScalar(.5),new THREE.Vector3(span.r,length/2,span.r),q);
   if(hardware<maxSupports&&span.length>.31&&span.edgeId%3===0){
    const c=a.clone().lerp(b,.53);
    mesh(root,kit.get('clamp_strap'),mats.clamp,c,span.r,q);
@@ -102,10 +150,11 @@ export async function createPipeAssembly(network,{mode='water',scale=.00265,maxS
    q=aligned(worldDir(f.x));tag=f.type+'_shell';
   }
   if(!tag||!kit.has(tag))continue;
-  mesh(root,kit.get(tag),mats.fitting,p,f.r,q);
+  pipeShell(kit.get(tag),mats.fitting,p,f.r,q);
   if(f.type==='flange')mesh(root,kit.get('flange_fasteners'),mats.bolt,p,f.r,q);
  }
  root.userData.pipeStats={...graph.stats,supports:hardware,kitMeshes:root.children.length};
- return {root,materials:Object.values(mats).flat(),stats:{...root.userData.pipeStats,palette:network.palette||mode}};
+ root.userData.xrayCutaway=mode==='water'?{splitPlaneZ:.06,frontOpacity:.33}:null;
+ return {root,materials:[...Object.values(mats).flat(),...cutawayMaterials],stats:{...root.userData.pipeStats,palette:network.palette||mode}};
 }
 export {loadKit};
