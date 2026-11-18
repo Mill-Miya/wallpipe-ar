@@ -53,11 +53,56 @@ try {
  camera.position.set(0,0,-2.5);camera.lookAt(0,0,0);camera.updateMatrixWorld();
  core.visible=true;const rearWater=read();
  core.visible=false;const rearDry=read();
+ // Repeat the pixel test at a real 90-degree L elbow. The water must
+ // follow the same authored circular bend, not cut across the sharp node.
+ const elbowNet={
+  nodes:[{id:0,x:-180,y:0},{id:1,x:0,y:0},{id:2,x:0,y:180}],
+  edges:[
+   {id:0,a:0,b:1,kind:'supply',diameter:20,valveIndex:-1,flow:1,paintIndex:-1},
+   {id:1,a:1,b:2,kind:'branch',diameter:20,valveIndex:-1,flow:1,paintIndex:-1}
+  ],
+  valves:[],source:0,targets:[2],terminals:[]
+ };
+ const elbowAssembly=await createPipeAssembly(elbowNet,{mode:'water'});
+ const elbowScene=new THREE.Scene();
+ elbowScene.add(new THREE.HemisphereLight(0xffffff,0x6b8b92,2.1));
+ const elbowKey=new THREE.DirectionalLight(0xffffff,2.5);
+ elbowKey.position.set(-1,2,3);elbowScene.add(elbowKey);
+ elbowScene.add(elbowAssembly.root);
+ const elbowVisuals=window.WallPipeFlowVisuals.create({
+  THREE,network:elbowNet,parent:elbowScene,mode:'water',baseline:[],
+  point:(n,z=.06)=>new THREE.Vector3(n.x*.00265,-n.y*.00265,z)
+ });
+ elbowVisuals.animate(750);
+ for(const marker of elbowVisuals.barMarkers)marker.mesh.visible=false;
+ for(const straight of elbowVisuals.coreMarkers)straight.mesh.visible=false;
+ for(const elbow of elbowVisuals.bendMarkers)elbow.mesh.visible=false;
+ if(elbowVisuals.bendMarkers.length!==1)throw Error('Expected exactly one physical elbow');
+ const bend=elbowVisuals.bendMarkers[0];
+ const centerline=bend.curve.getPoint(.5);
+ const badShortcut=new THREE.Vector3(0,0,.06);
+ camera.position.set(0,0,2.5);camera.lookAt(0,0,0);camera.updateMatrixWorld();
+ const pixelAt=worldPoint=>{
+  renderer.render(elbowScene,camera);
+  const v=worldPoint.clone().project(camera);
+  const x=Math.max(0,Math.min(719,Math.round((v.x+1)*360)));
+  const y=Math.max(0,Math.min(479,Math.round((v.y+1)*240)));
+  const out=new Uint8Array(4);gl.readPixels(x,y,1,1,gl.RGBA,gl.UNSIGNED_BYTE,out);
+  return [...out];
+ };
+ bend.core.visible=true;const bendWet=pixelAt(centerline);
+ bend.core.visible=false;const bendDry=pixelAt(centerline);
+ bend.core.visible=true;const shortcutWet=pixelAt(badShortcut);
+ bend.core.visible=false;const shortcutDry=pixelAt(badShortcut);
+ bend.core.visible=true;renderer.render(elbowScene,camera);
  window.__xrayFixture={
   frontWater,frontDry,exposedWater,rearWater,rearDry,
   frontCount:fronts.length,backCount:backs.length,
   frontOpacity:fronts[0].material.opacity,rearOpacity:backs[0].material.opacity,
-  centerZ:core.position.z,fluidVisible:visuals.coreMarkers.length===1
+  centerZ:core.position.z,fluidVisible:visuals.coreMarkers.length===1,
+  elbow:{bendWet,bendDry,shortcutWet,shortcutDry,curveRadius:bend.radius,
+   midpoint:[centerline.x,centerline.y,centerline.z],
+   node:[badShortcut.x,badShortcut.y,badShortcut.z]}
  };
  camera.position.set(0,0,2.5);camera.lookAt(0,0,0);camera.updateMatrixWorld();
  core.visible=true;renderer.render(scene,camera);
