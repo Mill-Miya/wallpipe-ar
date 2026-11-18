@@ -52,12 +52,18 @@
   parent.add(root);
   const coreRadius=mode==='water'?.006:.008;
   const barGeo=new THREE.CylinderGeometry(coreRadius,coreRadius,1,10,1,false);
+  // A continuous, low-opacity fluid core makes the flow readable through the
+  // translucent pipe wall even between moving bar pulses.
+  const fluidGeo=mode==='water'?new THREE.CylinderGeometry(.010,.010,1,12,1,false):null;
   const jetGeo=new THREE.CylinderGeometry(.015,.019,1,12,1,true);
   const streakGeo=new THREE.CylinderGeometry(.005,.005,1,8,1,false);
   const pathMat=new THREE.MeshBasicMaterial({color:baseColor,transparent:true,opacity:.86,depthWrite:false,side:THREE.DoubleSide});
+  const fluidMat=mode==='water'?new THREE.MeshBasicMaterial({
+   color:0x32c6e9,transparent:true,opacity:.32,depthWrite:false,depthTest:true,side:THREE.DoubleSide
+  }):null;
   const waterColor=mode==='water'?0x48bfe0:baseColor;
   const streakMat=new THREE.MeshBasicMaterial({color:0xc8f3fb,transparent:true,opacity:.84,depthWrite:false,side:THREE.DoubleSide});
-  const barMarkers=[];
+  const barMarkers=[],coreMarkers=[];
   const up=new THREE.Vector3(0,1,0);
   for(const edge of network.edges){
    const a=point(network.nodes[edge.a]),b=point(network.nodes[edge.b]);
@@ -73,6 +79,16 @@
    marker.scale.y=Math.min(.10,Math.max(.025,length*.24));
    marker.visible=false;root.add(marker);
    barMarkers.push({edge,a,b,length,mesh:marker});
+   if(fluidGeo&&edge.valveIndex<0){
+    const core=new THREE.Mesh(fluidGeo,fluidMat);
+    core.name='flow-core-'+edge.id;
+    core.quaternion.setFromUnitVectors(up,difference.clone().normalize());
+    core.position.copy(a).lerp(b,.5);
+    core.scale.y=length;
+    core.renderOrder=3;
+    core.visible=false;root.add(core);
+    coreMarkers.push({edge,a,b,length,mesh:core});
+   }
   }
   const outlets=[];
   if(mode==='water'){
@@ -119,6 +135,10 @@
   function animate(now){
    if(!active)return;
    const t=Number.isFinite(now)?now*.001:0;
+   for(const entry of coreMarkers){
+    const flow=entry.edge.flow;
+    entry.mesh.visible=Number.isFinite(flow)&&Math.abs(flow)>0.0001;
+   }
    for(const entry of barMarkers){
     const flow=entry.edge.flow;
     entry.mesh.visible=Number.isFinite(flow)&&Math.abs(flow)>0.0001;
@@ -143,12 +163,13 @@
    if(!active)return;active=false;
    root.parent?.remove(root);
    for(const entry of barMarkers)entry.mesh.visible=false;
+   for(const entry of coreMarkers)entry.mesh.visible=false;
    for(const o of outlets)o.group.visible=false;
-   for(const g of [barGeo,jetGeo,streakGeo])g.dispose();
-   for(const m of [pathMat,streakMat,...outlets.map(o=>o.material)])m.dispose();
+   for(const g of [barGeo,fluidGeo,jetGeo,streakGeo])g?.dispose();
+   for(const m of [pathMat,fluidMat,streakMat,...outlets.map(o=>o.material)])m?.dispose();
   }
   return Object.freeze({
-   root,barMarkers,outlets,descriptors,baseline:[...ref],
+   root,barMarkers,coreMarkers,outlets,descriptors,baseline:[...ref],
    sync,animate,dispose,getStates:()=>lastStates
   });
  }
