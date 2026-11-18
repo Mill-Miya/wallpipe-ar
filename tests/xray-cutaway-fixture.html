@@ -1,0 +1,65 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<script src="../js/flow-visuals.js"></script>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script>
+<style>html,body{margin:0;background:#152a31}canvas{display:block;width:720px;height:480px}</style>
+</head><body><canvas id="canvas" width="720" height="480"></canvas>
+<script type="module">
+import * as THREE from 'three';
+import {createPipeAssembly} from '../js/pipe-assets.js';
+try {
+ const canvas=document.querySelector('#canvas');
+ const renderer=new THREE.WebGLRenderer({canvas,antialias:false,preserveDrawingBuffer:true});
+ renderer.setSize(720,480,false);renderer.setPixelRatio(1);renderer.setClearColor(0x152a31);
+ const gl=renderer.getContext(),scene=new THREE.Scene();
+ scene.add(new THREE.HemisphereLight(0xffffff,0x6b8b92,2.1));
+ const key=new THREE.DirectionalLight(0xffffff,2.5);key.position.set(-1,2,3);scene.add(key);
+ const camera=new THREE.PerspectiveCamera(45,720/480,.05,10);
+ const network={
+  nodes:[{id:0,x:-130,y:0},{id:1,x:130,y:0}],
+  edges:[{id:0,a:0,b:1,kind:'supply',diameter:20,valveIndex:-1,flow:1,paintIndex:-1}],
+  valves:[],source:0,targets:[1],
+  terminals:[{label:'test',nodeId:1,valveIndex:0,kind:'fixture',outletEdgeId:0}]
+ };
+ const assembly=await createPipeAssembly(network,{mode:'water'});
+ scene.add(assembly.root);
+ const cut=assembly.root.userData.xrayCutaway;
+ const fronts=assembly.root.children.filter(x=>x.name==='xray-lever-side-shell');
+ const backs=assembly.root.children.filter(x=>x.name==='xray-opaque-back');
+ if(!cut||fronts.length<2||fronts.length!==backs.length)throw Error('X-ray pipe halves missing');
+ const visuals=window.WallPipeFlowVisuals.create({
+  THREE,network,parent:scene,mode:'water',baseline:[1],
+  point:(n,z=.06)=>new THREE.Vector3(n.x*.00265,-n.y*.00265,z)
+ });
+ visuals.animate(1000);
+ for(const marker of visuals.barMarkers)marker.mesh.visible=false;
+ for(const outlet of visuals.outlets)outlet.group.visible=false;
+ const core=visuals.coreMarkers[0].mesh;
+ if(!core||core.position.z!==.06||core.renderOrder!==3)throw Error('Internal fluid core is not centered');
+ const read=()=>{
+  renderer.render(scene,camera);
+  const p=core.getWorldPosition(new THREE.Vector3()).project(camera);
+  const x=Math.max(0,Math.min(719,Math.round((p.x+1)*360))),y=Math.max(0,Math.min(479,Math.round((p.y+1)*240)));
+  const out=new Uint8Array(4);gl.readPixels(x,y,1,1,gl.RGBA,gl.UNSIGNED_BYTE,out);
+  return [...out];
+ };
+ camera.position.set(0,0,2.5);camera.lookAt(0,0,0);camera.updateMatrixWorld();
+ core.visible=true;const frontWater=read();
+ core.visible=false;const frontDry=read();
+ core.visible=true;
+ for(const x of fronts)x.visible=false;
+ const exposedWater=read();
+ for(const x of fronts)x.visible=true;
+ camera.position.set(0,0,-2.5);camera.lookAt(0,0,0);camera.updateMatrixWorld();
+ core.visible=true;const rearWater=read();
+ core.visible=false;const rearDry=read();
+ window.__xrayFixture={
+  frontWater,frontDry,exposedWater,rearWater,rearDry,
+  frontCount:fronts.length,backCount:backs.length,
+  frontOpacity:fronts[0].material.opacity,rearOpacity:backs[0].material.opacity,
+  centerZ:core.position.z,fluidVisible:visuals.coreMarkers.length===1
+ };
+ camera.position.set(0,0,2.5);camera.lookAt(0,0,0);camera.updateMatrixWorld();
+ core.visible=true;renderer.render(scene,camera);
+}catch(error){window.__xrayFixtureError=String(error?.stack||error);console.error(error);}
+</script></body></html>
