@@ -28,4 +28,9 @@ assert(home.includes('loadValveModel')&&home.includes('attachValveModels'),'Pipe
 assert(home.includes('AmbientLight')&&home.includes('toneMappingExposure'),'Preview requires ambient fill and calibrated exposure');
 assert(loader.includes('computeVertexNormals')&&loader.includes('emissiveIntensity'),'Mobile materials need explicit fallback lighting');
 assert(!loader.includes('metal=.61'),'Avoid high-metalness unlit silhouette without reflection maps');
+assert(loader.includes('makeWaterCutaway(root,cutawayMaterials)'),'Water system uses root-relative front/back cutaway');
+assert(loader.includes('root.localToWorld(origin)')&&loader.includes('transformDirection(root.matrixWorld)'),'X-ray plane follows spatial anchor');
+assert(loader.includes('front.renderOrder=5')&&loader.includes('m.depthWrite=!front'),'Translucent front blends after water without depth occlusion');
+assert(loader.includes('m.opacity=front?.33:1'),'Opaque pipe rear and translucent lever-facing front');
+assert(loader.includes('...cutawayMaterials]'),'Cutaway materials are disposed with the assembly');
 console.log('PASS: GLB nodes, size, '+triangles+' triangles, AR fallback and isolated pipe preview');
