@@ -23,6 +23,11 @@ try {
  assert(frontDiff>12,'Fluid must be visible THROUGH front shell, not just on pipe exterior: '+JSON.stringify(v));
  assert(rearDiff<6,'Opaque rear must conceal internal water when viewed from behind: '+JSON.stringify(v));
  assert(shellDiff>4,'Front material must actually cover the fluid rather than disappear: '+JSON.stringify(v));
+ const curveDiff=difference(v.elbow.bendWet,v.elbow.bendDry);
+ const crossingDiff=difference(v.elbow.shortcutWet,v.elbow.shortcutDry);
+ assert(curveDiff>10,'Fluid must be visible inside the curved elbow: '+JSON.stringify(v.elbow));
+ assert(crossingDiff<7,'Water must NOT cut straight through the elbow corner: '+JSON.stringify(v.elbow));
+ assert(v.elbow.curveRadius>.03,'Use the physical authored elbow radius');
  await page.screenshot({path:'/tmp/wallpipe-xray-water-core.png',fullPage:true});
  console.log('PASS real WebGL X-ray: interior visible from lever front but hidden behind opaque rear',JSON.stringify({frontDiff,rearDiff,shellDiff,...v}));
 }finally{await browser.close();}
