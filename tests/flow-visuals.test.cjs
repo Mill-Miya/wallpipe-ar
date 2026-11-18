@@ -1,6 +1,7 @@
 'use strict';
 const assert=require('node:assert/strict');
 const Engine=require('../js/piping-engine.js');
+const Layout=require('../js/pipe-layout.js');
 const Flow=require('../js/flow-visuals.js');
 class Vec{
  constructor(x=0,y=0,z=0){this.x=x;this.y=y;this.z=z;}
@@ -10,11 +11,14 @@ class Vec{
  addScaledVector(v,k){this.x+=v.x*k;this.y+=v.y*k;this.z+=v.z*k;return this;}
  length(){return Math.hypot(this.x,this.y,this.z);}
  normalize(){const m=this.length()||1;this.x/=m;this.y/=m;this.z/=m;return this;}
+ multiplyScalar(v){this.x*=v;this.y*=v;this.z*=v;return this;}
  lerp(b,t){this.x+=(b.x-this.x)*t;this.y+=(b.y-this.y)*t;this.z+=(b.z-this.z)*t;return this;}
  set(x,y,z){this.x=x;this.y=y;this.z=z;return this;}
 }
 let disposed=0;
 class Geo{dispose(){disposed++;}}
+class TubeGeometry extends Geo{constructor(curve,count,radius){super();this.parameters={path:curve,tubularSegments:count,radius};}}
+class Curve{}
 class Mat{constructor(opts){Object.assign(this,opts);}dispose(){disposed++;}}
 class Group{
  constructor(){this.children=[];this.position=new Vec();this.visible=true;this.parent=null;this.quaternion={setFromUnitVectors:(a,b)=>{this.outletDirection=b.clone();}};}
@@ -29,12 +33,13 @@ class Mesh extends Group{
  }
 }
 const THREE={
- Group,Mesh,Vector3:Vec,CylinderGeometry:Geo,MeshBasicMaterial:Mat,DoubleSide:2
+ Group,Mesh,Vector3:Vec,CylinderGeometry:Geo,TubeGeometry,Curve,MeshBasicMaterial:Mat,DoubleSide:2
 };
 const point=(node,z=.06)=>new Vec(node.x*.00265,-node.y*.00265,z);
 let scans=0,visibleChecks=0,barChecks=0;
 for(let seed=1;seed<=240;seed++){
  const n=Engine.makeNetwork({mode:'water',surface:'wall',seed});
+ const pipeLayout=Layout.plan(n);
  const names=Flow.describeOutlets(n);
  assert.equal(names.length,n.valves.length);
  assert.equal(new Set(names.map(x=>x.nodeId)).size,n.valves.length);
@@ -57,6 +62,28 @@ for(let seed=1;seed<=240;seed++){
  assert.equal(v.outlets.length,n.terminals.length,'Every fixture must own a distinct water jet');
  assert.equal(v.barMarkers.length,n.edges.length,'Every pipe edge has a moving flow bar');
  assert.equal(v.coreMarkers.length,n.edges.filter(edge=>edge.valveIndex<0).length,'All real water pipes have a visible inner fluid core');
+ assert.equal(v.bendMarkers.length,pipeLayout.fittings.filter(f=>f.type==='elbow').length,'All physical elbows must have curved water cores');
+ for(const bend of v.bendMarkers){
+  const f=pipeLayout.fittings.find(f=>f.nodeId===bend.nodeId);
+  assert(f&&f.type==='elbow');
+  const node=point(n.nodes[f.nodeId]);
+  const p0=bend.curve.getPoint(0),p1=bend.curve.getPoint(1),mid=bend.curve.getPoint(.5);
+  const x=new Vec(f.x.x,-f.x.y,0),y=new Vec(f.y.x,-f.y.y,0);
+  const expectedStart=node.clone().addScaledVector(x,-f.shoulder);
+  const expectedEnd=node.clone().addScaledVector(y,f.shoulder);
+  assert(Math.hypot(p0.x-expectedStart.x,p0.y-expectedStart.y)<1e-8,'Bend core must meet the inlet shell');
+  assert(Math.hypot(p1.x-expectedEnd.x,p1.y-expectedEnd.y)<1e-8,'Bend core must meet the outlet shell');
+  assert(Math.hypot(mid.x-node.x,mid.y-node.y)>.005,'Water must follow the circular elbow and never shortcut through its sharp corner');
+  assert.equal(bend.core.renderOrder,3);
+  assert.equal(bend.mesh.renderOrder,4);
+ }
+ const spans=new Map(pipeLayout.spans.map(s=>[s.edgeId,s]));
+ for(const core of v.coreMarkers){
+  const span=spans.get(core.edge.id);
+  assert(span,'Core must be anchored on the same span as the pipe shell');
+  assert(Math.hypot(core.a.x-span.a.x,core.a.y-span.a.y)<1e-8,'Core inlet must be trimmed at the fitting');
+  assert(Math.hypot(core.b.x-span.b.x,core.b.y-span.b.y)<1e-8,'Core outlet must be trimmed at the fitting');
+ }
  for(const core of v.coreMarkers){
   assert.equal(core.a.z,.06);assert.equal(core.b.z,.06);
   assert.equal(core.mesh.renderOrder,3,'Water core is drawn before moving pulses and translucent front shell');
@@ -81,6 +108,7 @@ for(let seed=1;seed<=240;seed++){
  assert(v.outlets.every(x=>x.length>.2),'Full-flow jets should be visually substantial');
  v.animate(1000);barChecks+=v.barMarkers.filter(m=>m.mesh.visible).length;
  assert(v.coreMarkers.every(c=>c.mesh.visible),'Full flow must fill all pipe interior cores');
+ assert(v.bendMarkers.every(c=>c.core.visible&&c.mesh.visible),'Water must flow around each live elbow');
  for(const t of n.terminals){
   assert.equal(v.barMarkers.find(b=>b.edge.id===t.outletEdgeId).mesh.visible,true,'Last elbow tail must show flow while outlet is open');
  }
@@ -107,6 +135,7 @@ for(let seed=1;seed<=240;seed++){
  const zero=Engine.solveFlow(n,[0,0,0]);v.sync(zero);v.animate(1800);
  assert(v.outlets.every(x=>!x.group.visible),'All closed means no water');
  assert(v.coreMarkers.every(c=>!c.mesh.visible),'All closed means no interior flow');
+ assert(v.bendMarkers.every(c=>!c.core.visible&&!c.mesh.visible),'No live elbow pulses when all valves are shut');
  v.dispose();
  assert.equal(parent.children.length,0,'Disposed flow visuals must leave AR anchor');
  scans++;
@@ -117,6 +146,7 @@ for(const mode of ['air','plant']){
  const holder=new Group(),v=Flow.create({THREE,network:n,parent:holder,point,mode,baseline,baseColor:0x368d74});
  assert.equal(v.outlets.length,0,'Only supply-water mode has open faucet jets');
  assert.equal(v.coreMarkers.length,0,'Only water mode uses the interior X-ray flow');
+ assert.equal(v.bendMarkers.length,0,'Only water mode uses curved internal flow');
  assert(v.barMarkers.some(m=>m.a.z>.06),'Air/factory keep visible external tracers behind opaque walls');
  assert.equal(v.barMarkers.length,n.edges.length,'Industrial / HVAC visual bars still exist');
  v.sync(Engine.solveFlow(n,n.valves.map(()=>1)));v.animate(700);
