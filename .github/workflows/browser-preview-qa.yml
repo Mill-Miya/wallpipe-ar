@@ -18,6 +18,8 @@ on:
       - 'js/flow-visuals.js'
       - 'tests/browser-flow-bars.test.mjs'
       - 'tests/flow-bars-fixture.html'
+      - 'tests/browser-xray-cutaway.test.mjs'
+      - 'tests/xray-cutaway-fixture.html'
       - '.github/workflows/browser-preview-qa.yml'
   workflow_dispatch:
 permissions:
@@ -43,6 +45,7 @@ jobs:
           node tests/browser-preview.test.mjs
           node tests/browser-depth-mask.test.mjs
           node tests/browser-flow-bars.test.mjs
+          node tests/browser-xray-cutaway.test.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -51,4 +54,5 @@ jobs:
             /tmp/wallpipe-factory-browser.png
             /tmp/wallpipe-depth-mask-webgl.png
             /tmp/wallpipe-three-water-jets.png
+            /tmp/wallpipe-xray-water-core.png
           if-no-files-found: ignore
