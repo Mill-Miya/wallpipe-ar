@@ -56,6 +56,11 @@ for(let seed=1;seed<=240;seed++){
  const v=Flow.create({THREE,network:n,parent,point,mode:'water',baseline});
  assert.equal(v.outlets.length,n.terminals.length,'Every fixture must own a distinct water jet');
  assert.equal(v.barMarkers.length,n.edges.length,'Every pipe edge has a moving flow bar');
+ for(const m of v.barMarkers){
+  assert.equal(m.a.z,.06,'Water begins on the pipe centerline');
+  assert.equal(m.b.z,.06,'Water ends on the pipe centerline');
+  assert.equal(m.mesh.renderOrder,4,'Internal water draws before front translucent shell');
+ }
  assert.equal(new Set(v.outlets.map(o=>o.column)).size,n.terminals.length,'No shared terminal emitter');
  for(let i=0;i<v.outlets.length;i++){
   const t=n.terminals[i],end=point(n.nodes[t.nodeId],.06),o=v.outlets[i];
@@ -101,6 +106,7 @@ for(const mode of ['air','plant']){
  const baseline=Engine.solveFlow(n,n.valves.map(()=>1)).terminalFlows;
  const holder=new Group(),v=Flow.create({THREE,network:n,parent:holder,point,mode,baseline,baseColor:0x368d74});
  assert.equal(v.outlets.length,0,'Only supply-water mode has open faucet jets');
+ assert(v.barMarkers.some(m=>m.a.z>.06),'Air/factory keep visible external tracers behind opaque walls');
  assert.equal(v.barMarkers.length,n.edges.length,'Industrial / HVAC visual bars still exist');
  v.sync(Engine.solveFlow(n,n.valves.map(()=>1)));v.animate(700);
  v.dispose();
