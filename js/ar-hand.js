@@ -152,8 +152,8 @@ function buildNetwork(){
  const ownedMaterials=[],labelTextures=[];
  const material=(color,metalness=.4,opacity=1)=>{const m=new THREE.MeshStandardMaterial({color,metalness,roughness:.51,transparent:opacity<1,opacity,depthWrite:opacity===1});ownedMaterials.push(m);return m;};
  const tint={water:[0x7b9ca6,0x6d8493],air:[0x829f98,0x69828d],plant:[0x998b7b,0x7b828a]}[mode];
- const pipeM=material(tint[0],.55),returnM=material(tint[1],.48),loadM=material(0xb48f65,.43);
- const jointM=material(0xb0bcb9,.48),valveM=material(0x869c9f,.53),leverM=material(0xd3a157,.44),wheelM=material(0x485961,.43);
+ const pipeM=material(tint[0],.55,mode==='water'?.42:1),returnM=material(tint[1],.48),loadM=material(0xb48f65,.43);
+ const jointM=material(0xb0bcb9,.48,mode==='water'?.42:1),valveM=material(0x869c9f,.53),leverM=material(0xd3a157,.44),wheelM=material(0x485961,.43);
  function at(parent,geom,mat,pos){const o=new THREE.Mesh(geom,mat);if(pos)o.position.copy(pos);parent.add(o);return o;}
  function collar(parent,p,r,axis,ratio=1.2){const c=at(parent,new THREE.CylinderGeometry(r*ratio,r*ratio,.026,14),jointM,p);c.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),axis);return c;}
  function addValveLabel(parent,index){
