@@ -18,7 +18,7 @@ const html=fs.readFileSync('ar-hand.html','utf8');
 const app=fs.readFileSync('js/ar-hand.js','utf8');
 const loader=fs.readFileSync('js/pipe-assets.js','utf8');
 const home=fs.readFileSync('pipe-preview.html','utf8');
-assert(html.includes("import('./js/pipe-assets.js')"),'AR boot must load pipe kit');
+assert(/import\(['"]\.\/js\/pipe-assets\.js\?rev=[^'"]+['"]\)/.test(html),'AR boot must load a cache-busted pipe kit');
 assert(app.includes('PipeAssets.createPipeAssembly(network,{mode})'),'AR must build from engineering network');
 assert(app.includes('anchor.userData.pipeAssetRoot'),'Pipe kit roots must be tracked for cleanup');
 assert(!app.includes('obj.geometry.dispose();}});anchor.remove(child);'),'No indiscriminate geometry cleanup');
