@@ -50,3 +50,36 @@ assert(src.includes('onDetach:()=>{stopHandSampling();disposeHandOcclusion();han
 assert(src.includes('scheduleHandSampling();'));
 assert(!src.includes('if(tracking){sampleHand();animateFlow();}'),'Do not block 8th Wall render loop with ML inference');
 console.log('PASS: AR teardown, stale valve disposal, cached GLB geometry safety, separate hand scheduler');
+
+// A live position readout must decrease when walking back toward the origin.
+const poseStart=src.indexOf('function syncWorldPosition(');
+const poseEnd=src.indexOf('const desktopPreview=',poseStart);
+const hud={hidden:true,textContent:''};
+const position={
+ x:0,y:1.6,z:0,
+ set(x,y,z){Object.assign(this,{x,y,z});},
+ clone(){return {...this};},
+ distanceTo(other){return Math.hypot(this.x-other.x,this.y-other.y,this.z-other.z);}
+};
+let now=1000;
+const poseContext={
+ camera:{position,quaternion:{clone(){return{angleTo(){return 0;}};}},updateMatrixWorld(){}},
+ $:()=>hud,performance:{now:()=>now},Number,Math
+};
+vm.runInNewContext('let poseOrigin=null,poseRotation=null,lastPoseDisplay=0;'+src.slice(poseStart,poseEnd),poseContext);
+function feedPose(x,status='NORMAL'){
+ now+=400;
+ poseContext.reality={position:{x,y:1.6,z:0},trackingStatus:status};
+ vm.runInNewContext('syncWorldPosition(reality)',poseContext);
+ return hud.textContent;
+}
+assert.match(feedPose(0),/0.0 cm/);
+assert.match(feedPose(1),/水平 100.0 cm.*上下 0.0 cm/);
+now+=400;
+poseContext.reality={position:{x:0,y:3.26,z:0},trackingStatus:'NORMAL'};
+vm.runInNewContext('syncWorldPosition(reality)',poseContext);
+assert.match(hud.textContent,/水平 0.0 cm.*上下 166.0 cm/,'A height estimate change must not appear as horizontal walking');
+assert.match(feedPose(.4,'LIMITED'),/40.0 cm.*LIMITED/);
+assert.match(feedPose(0),/0.0 cm.*NORMAL/);
+assert.doesNotMatch(hud.textContent,/未検出/,'Returning to the origin does not mean translation was never detected');
+console.log('PASS live position decreases on return motion and shows actual tracking state');

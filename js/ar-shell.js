@@ -39,7 +39,7 @@ async function loadAR() {
       import('./valve-assets.js'),
       import('./pipe-assets.js?rev=20261118-bend1')
     ]);
-    await import('./ar-hand.js?rev=20261122-ui6');
+    await import('./ar-hand.js?rev=20261122-ui7');
   } catch (error) {
     app.dataset.phase = 'error';
     document.getElementById('status').dataset.status = 'error';
