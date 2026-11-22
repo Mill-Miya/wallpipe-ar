@@ -405,6 +405,10 @@ function pipePipelineModule(){return {
   modelReady=false;forcedPlacement=false;tracking=false;trackingSlow=false;
   trackingGate.good=0;trackingGate.bad=0;trackingGate.stable=false;
   const xrscene=window.XR8.Threejs.xrScene();scene=xrscene.scene;camera=xrscene.camera;
+  // XR8 requires a nonzero initial camera height for positional tracking.
+  // This is an initial origin estimate, not a measured device height.
+  camera.position.set(0,1.6,0);
+  camera.updateMatrixWorld(true);
   disposeHandOcclusion();
   try{
    handDepthMask=HandDepthMask.create({THREE,camera,canvas:ui.occlusion});

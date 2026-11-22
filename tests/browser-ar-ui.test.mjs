@@ -22,7 +22,9 @@ async function installXRFixture(page, supported = true) {
       window.XR8 = {
         GlTextureRenderer: empty,
         Threejs: {...empty, xrScene:()=>({scene,camera})},
-        XrController: {...empty, configure(){}, updateCameraProjectionMatrix(){}, recenter(){}},
+        XrController: {...empty, configure(){}, updateCameraProjectionMatrix({origin}){
+          window.xrOriginHeight=origin.y;
+        }, recenter(){}},
         XrConfig: {device:()=>({MOBILE:'mobile'}),camera:()=>({BACK:'back'})},
         XrDevice: {isDeviceBrowserCompatible:()=>${supported}},
         addCameraPipelineModules(value){ modules=value; },
@@ -30,7 +32,8 @@ async function installXRFixture(page, supported = true) {
           if (allowedDevices!=='mobile') throw Error('World tracking requires MOBILE');
           window.xrRuns++;
           canvas.style.zIndex='999';
-          scene=new THREE.Scene(); camera=new THREE.PerspectiveCamera(60,canvas.clientWidth/canvas.clientHeight,.01,100);
+          scene=new THREE.Scene(); window.xrScene=scene; camera=new THREE.PerspectiveCamera(60,canvas.clientWidth/canvas.clientHeight,.01,100);
+          window.xrCamera=camera;
           const world=modules.at(-1);
           world.onStart();
           window.xrTrack=()=>{for(let i=0;i<10;i++)world.onUpdate({processCpuResult:{reality:{trackingStatus:'NORMAL'}}});};
@@ -114,6 +117,7 @@ for (const [width,height] of [[1440,900],[820,1180],[768,1024],[390,844],[320,56
     await settings.click();
     await action.click();
     await verify('scanning',true);
+    assert.equal(await page.evaluate(()=>window.xrOriginHeight),1.6,'XR origin must have a nonzero initial camera height');
     assert.equal(await page.evaluate(()=>window.xrRuns),1);
     await settings.click();
     await verify('scanning',false);
@@ -141,6 +145,25 @@ for (const [width,height] of [[1440,900],[820,1180],[768,1024],[390,844],[320,56
     await verify('place',true);
     await action.click();
     await verify('placed',true);
+    const worldInvariant=await page.evaluate(()=>{
+      const anchor=window.xrScene.getObjectByName('wallpipe-fixed-world-anchor');
+      const camera=window.xrCamera;
+      anchor.updateMatrixWorld(true);
+      const before=anchor.matrixWorld.toArray();
+      const original=camera.position.clone();
+      const target=anchor.getWorldPosition(new THREE.Vector3());
+      const front=target.clone().project(camera);
+      camera.position.x+=1;
+      camera.rotation.y=Math.PI;
+      camera.updateMatrixWorld(true);
+      anchor.updateMatrixWorld(true);
+      const rear=target.clone().project(camera);
+      const after=anchor.matrixWorld.toArray();
+      camera.position.copy(original);camera.rotation.set(0,0,0);camera.updateMatrixWorld(true);
+      return {before,after,projectionChanged:front.distanceTo(rear)>0.1};
+    });
+    assert.deepEqual(worldInvariant.before,worldInvariant.after,'Moving and turning the camera must preserve world anchor coordinates');
+    assert(worldInvariant.projectionChanged,'Camera motion must change the projected view');
     assert.equal(await page.locator('#valveControls').isVisible(),true);
     await page.locator('#toggle').click();
     assert.equal(await page.locator('#opening').inputValue(),'0');
