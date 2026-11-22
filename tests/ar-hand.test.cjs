@@ -10,13 +10,9 @@ const app=fs.readFileSync(path.join(root,'js/ar-hand.js'),'utf8');
 const screenMap=fs.readFileSync(path.join(root,'js/hand-screen-map.js'),'utf8');
 const trackingGate=fs.readFileSync(path.join(root,'js/tracking-gate.js'),'utf8');
 function failIfMissing(strings,body,where){for(const s of strings)assert.ok(body.includes(s),`${where}: missing ${s}`)}
-failIfMissing(['@8thwall/engine-binary@1','three.module.js','js/ar-hand.js','XR Engineライセンス','arCanvas','id="place"','id="start"'],page,'HTML');
+failIfMissing(['@8thwall/engine-binary@1','three.module.js','js/ar-shell.js','XR Engineライセンス','arCanvas','id="quickAction"'],page,'HTML');
 failIfMissing(['XR8.Threejs.xrScene','XR8.XrController.updateCameraProjectionMatrix','scale:\'absolute\'','onAttach:({video:sourceVideo,stream:sourceStream})','detectForVideo(video,now)','anchor.position.copy','anchor.rotation.set','anchor.localToWorld','Gestures.step','Engine.solveFlow'],app,'AR integration');
 failIfMissing(['id="quickAction"','id="handTransform"','id="handRetry"','js/hand-screen-map.js','js/tracking-gate.js'],page,'Alignment and quick launch');
-// The floating AR shortcut is only available when the mobile controls panel is collapsed.
-assert(/@media\(max-width:720px\)\{\.panel:not\(\.is-collapsed\)~#quickAction\{display:none!important\}\}/.test(page),'Expanded mobile panel must hide the floating AR quick action');
-assert(page.indexOf('id="panel"')<page.indexOf('id="quickAction"'),'CSS sibling rule requires the panel before the quick action');
-assert(page.indexOf('id="start" class="btn primary"')>page.indexOf('id="panel"'),'Expanded panel retains its own AR start button');
 failIfMissing(['HandMap.mapLandmarks','TrackingGate.update','addValveLabel','updateQuickAction','onDetach:()=>','video.videoWidth','junctionShape','jointRadius','visibilitychange','handInitFailed'],app,'Tracking, cleanup, and hand alignment');
 assert(app.includes("if(video&&!landmarker&&!loadingHand)initializeHandTracking()"),'Hand model should initialize after placement');
 assert(!app.includes("onAttach:({video:sourceVideo})=>{video=sourceVideo||null;initializeHandTracking()"),'Do not start MediaPipe before AR placement');
@@ -38,30 +34,30 @@ assert(app.includes('flowDisplay?.animate(performance.now())'),'Flow animation m
 assert(app.includes('network.valves.map(()=>1)')&&app.includes('updateValveOptions()'),'AR selector and opening vector must follow generated valve count');
 assert(!app.includes("['gate','ball','butterfly'][i%3]"),'Factory valve assignment must not be fixed by lane');
 
-assert(page.includes('width:100vw!important')&&page.includes('height:100dvh!important'),'Fullscreen canvas layout must remain enabled');
+const css=fs.readFileSync(path.join(root,'css/ar.css'),'utf8');
+assert(css.includes('width: 100vw !important')&&css.includes('height: 100dvh !important'),'Fullscreen canvas layout must remain enabled');
 
 // Regression: iPhone landscape/portrait image alignment, smaller initial model,
  // and visible diagnostics are required before claiming AR hand usability.
 failIfMissing(['id="handHud"','id="placeScale"','id="placeDistance"','value="1.3"','value="1.85"'],page,'AR viewport and hand visibility');
 failIfMissing(['handStatus','ownedVideo.srcObject=sourceStream','anchor.scale.setScalar(Number(ui.scale.value))','ui.scale.disabled=false','lastInference=now'],app,'Hand feed and placement scale');
-assert(page.includes('v0.10.1'),'AR bend-aware water flow release marker must match');
-assert(page.includes('flow-visuals.js?rev=20261118-bend1')&&page.includes('pipe-assets.js?rev=20261118-bend1')&&page.includes('ar-hand.js?rev=20261118-bend1'),'Updated AR assets must bypass stale Safari cache');
+const shell=fs.readFileSync(path.join(root,'js/ar-shell.js'),'utf8');
+assert(page.includes('flow-visuals.js?rev=20261118-bend1')&&shell.includes('pipe-assets.js?rev=20261118-bend1')&&/ar-hand\.js\?rev=[^'"]+/.test(shell),'AR assets must bypass stale Safari cache');
 failIfMissing(['id="handOcclusion"','id="handOcclusionToggle"','js/hand-depth-mask.js'],page,'Hand foreground overlay UI');
-assert(page.includes('#stage.ar-placed~#preview'),'Placed AR should hide intrusive instruction');
-assert(page.includes('[data-alert="error"]'),'Asset error must remain visible after placement');
+assert(css.includes('#preview[data-alert="error"] { display: block; }'),'Asset errors must remain visible after placement');
 assert(app.includes("ui.stage.classList.add('ar-placed')"),'Placed class is set on anchor placement');
 assert(app.includes("ui.stage.classList.remove('ar-placed')"),'Placed class clears on reset');
 assert(app.includes('releaseAnchorResources()'),'Session should free owned geometry on camera detach');
 assert(app.includes('failAR(')&&app.includes('window.location.reload()'),'Camera failures need a usable restart path');
-assert(app.includes("trackingSlow?'追跡をやり直す'"),'Slow SLAM tracking must offer the user a visible retry');
-assert(app.includes('else if(trackingSlow)ui.rescan.click()'),'Quick retry must invoke the actual rescan action');
+assert(app.includes("label='空間認識をやり直す'"),'Slow SLAM tracking must offer a visible retry');
+assert(app.includes('else if(trackingSlow)rescan()'),'Quick retry must invoke the actual rescan action');
 
 failIfMissing(['js/hand-model-loader.js','id="presetExplore"','id="presetOverview"','id="handFailureDetails"'],page,'Hand loader and AR exploration controls');
 failIfMissing(['HandLoader.load','preferGPU:false','ui.handFailureDetails.textContent','selectViewPreset','anchor.scale.setScalar(Number(ui.scale.value))'],app,'Pinned hand SDK and spatial exploration integration');
 failIfMissing(['HandDepthMask.create','handDepthMask.update','paintHandOcclusion(points)','clearHandOcclusion()','disposeHandOcclusion()'],app,'Hand foreground integration');
 failIfMissing(['goodFrames=10','badFrames=3',"status==='NORMAL'"],trackingGate,'SLAM hysteresis');
 // World placement must be user-triggered: attaching a video alone must not auto-anchor.
-assert(/ui\.place\.addEventListener\('click',placeModel\)/.test(app));
+assert(/ui\.quick\.addEventListener\('click',.*if\(tracking\)placeModel\(\)/.test(app));
 assert(/if\(!tracking\|\|!camera\|\|!anchor\)/.test(app));
 assert(/anchor\.visible=false/.test(app));
 let networkCases=0;

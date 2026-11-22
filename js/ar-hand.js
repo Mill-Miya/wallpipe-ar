@@ -6,17 +6,20 @@ const THREE=window.THREE, Engine=window.WallPipeEngine, Gestures=window.WallPipe
 const HandMap=window.WallPipeHandScreenMap, TrackingGate=window.WallPipeTrackingGate, ValveAssets=window.WallPipeValveAssets,PipeAssets=window.WallPipePipeAssets,HandDepthMask=window.WallPipeHandDepthMask, HandLoader=window.WallPipeHandModelLoader,ValveMount=window.WallPipeValvePlacement,FlowVisuals=window.WallPipeFlowVisuals;
 if(!THREE||!Engine||!Gestures||!HandMap||!TrackingGate||!ValveAssets||!PipeAssets||!HandDepthMask||!HandLoader||!ValveMount||!FlowVisuals)throw new Error('Missing WallPipe dependencies or mesh loaders');
 const $=id=>document.getElementById(id);
-const ui={stage:$('stage'),canvas:$('arCanvas'),start:$('start'),place:$('place'),reset:$('reset'),panel:$('panel'),collapse:$('collapse'),preview:$('preview'),status:$('status'),statusText:$('statusText'),info:$('info'),hand:$('handState'),pointer:$('pointer'),opening:$('opening'),openingOut:$('openingOut'),select:$('valveSelect'),toggle:$('toggle'),summary:$('flowSummary'),quick:$('quickAction'),alignment:$('handTransform'),handRetry:$('handRetry'),rescan:$('rescan'),trackingDetails:$('trackingDetails'),handHud:$('handHud'),scale:$('placeScale'),scaleOut:$('placeScaleOut'),distance:$('placeDistance'),distanceOut:$('placeDistanceOut'),height:$('placeHeight'),heightOut:$('placeHeightOut'),reticle:$('targetReticle'),occlusion:$('handOcclusion'),occlusionToggle:$('handOcclusionToggle'),presetExplore:$('presetExplore'),presetOverview:$('presetOverview'),handFailureDetails:$('handFailureDetails')};
+const ui={app:$('app'),stage:$('stage'),canvas:$('arCanvas'),reset:$('reset'),collapse:$('collapse'),valveControls:$('valveControls'),preview:$('preview'),status:$('status'),statusText:$('statusText'),info:$('info'),hand:$('handState'),pointer:$('pointer'),opening:$('opening'),openingOut:$('openingOut'),select:$('valveSelect'),toggle:$('toggle'),summary:$('flowSummary'),quick:$('quickAction'),alignment:$('handTransform'),handRetry:$('handRetry'),rescan:$('rescan'),trackingDetails:$('trackingDetails'),handHud:$('handHud'),scale:$('placeScale'),scaleOut:$('placeScaleOut'),distance:$('placeDistance'),distanceOut:$('placeDistanceOut'),height:$('placeHeight'),heightOut:$('placeHeightOut'),reticle:$('targetReticle'),occlusion:$('handOcclusion'),occlusionToggle:$('handOcclusionToggle'),presetExplore:$('presetExplore'),presetOverview:$('presetOverview'),handFailureDetails:$('handFailureDetails')};
 const clamp=(v,lo,hi)=>Math.min(hi,Math.max(lo,v));
 let started=false,scene=null,camera=null,anchor=null,video=null,ownedVideo=null,tracking=false,lastTracking='',lastReason='';
 let mode='water',network=null,openings=[1,1,1],selected=0,modelReady=false,landmarker=null,loadingHand=false;
 let valves=[],flowDisplay=null,gesture=Gestures.createState(),lastInference=0,lastMessage='',handInitFailed=false,lastVideoTime=-1,lastHandsSeen=0,valveRevision=0,occlusionFault=false,handDepthMask=null,lastMaskUpdate=0,handGeneration=0,handTimer=0,handSampleDelay=230,slowFrames=0,fatalError=false,trackingSlow=false;
+let engineChecked=false,deviceSupported=false,trackingTimeout;
 const trackingGate=TrackingGate.createState();
 const colorByMode={water:0x2b8ea1,air:0x368d74,plant:0xb37a38};
 function state(status,message){if(ui.status.dataset.status!==status||ui.statusText.textContent!==message){ui.status.dataset.status=status;ui.statusText.textContent=message;}}
 function failAR(message,error){
  fatalError=true;tracking=false;
- state('error',message);
+ clearTimeout(trackingTimeout);
+ state('error','ARを開始・続行できません');
+ info(message);
  ui.trackingDetails.textContent='AR処理が停止しました。再起動ボタンから復旧できます。';
  updateQuickAction();
  if(error)console.error(error);
@@ -90,15 +93,48 @@ function scheduleHandSampling(){
  },handSampleDelay);
 }
 function updateQuickAction(){
- if(fatalError){ui.quick.hidden=false;ui.quick.textContent='ARを再起動する';ui.quick.disabled=false;return;}
- if(!started){ui.quick.hidden=false;ui.quick.textContent='ARカメラを開始';ui.quick.disabled=!window.XR8;return;}
- if(!modelReady){
-  ui.quick.hidden=false;
-  ui.quick.textContent=tracking?'配管を空間に配置':trackingSlow?'追跡をやり直す':'空間を認識中…';
-  ui.quick.disabled=!tracking&&!trackingSlow;
-  return;
+ let phase = 'loading';
+ let label = 'ARカメラを開始';
+ let disabled = true;
+ if(fatalError){
+  phase='error';label='ページを再読み込み';disabled=false;
+ }else if(!started && engineChecked){
+  phase=deviceSupported?'idle':'unsupported';disabled=!deviceSupported;
+ }else if(started && modelReady){
+  phase='placed';label='';
+ }else if(started && tracking){
+  phase='place';label='この向きに配管を配置';disabled=false;
+ }else if(started && trackingSlow){
+  phase='scanning';label='空間認識をやり直す';disabled=false;
+ }else if(started){
+  phase='scanning';label='';
  }
- ui.quick.hidden=true;
+ ui.app.dataset.phase=phase;
+ ui.stage.classList.toggle('can-place',phase==='place');
+ $('regen').disabled=!anchor||fatalError;
+ if(((!label||disabled)&&document.activeElement===ui.quick)||
+    (phase!=='placed'&&document.activeElement===ui.reset))ui.collapse.focus();
+ ui.quick.hidden=!label||phase==='unsupported';
+ if(label && ui.quick.textContent!==label)ui.quick.textContent=label;
+ ui.quick.disabled=disabled;
+ ui.reset.hidden=phase!=='placed';
+ ui.valveControls.hidden=!modelReady;
+ ui.valveControls.disabled=!modelReady||fatalError;
+ ui.collapse.textContent=modelReady?'バルブ・設定':'設定と使い方';
+ ui.rescan.hidden=phase==='scanning'&&trackingSlow;
+ if(fatalError)ui.rescan.disabled=true;
+}
+function waitForTracking(){
+ clearTimeout(trackingTimeout);
+ trackingTimeout=setTimeout(()=>{
+  if(!started||tracking||modelReady||fatalError)return;
+  trackingSlow=true;
+  state('loading','空間認識に時間がかかっています');
+  info('明るい場所で、模様のある床や家具をゆっくり映してください。');
+  ui.trackingDetails.textContent='認識をやり直せます。';
+  ui.rescan.disabled=false;
+  updateQuickAction();
+ },12000);
 }
 const valveNames={ball:'ボール弁',gate:'仕切弁',butterfly:'バタフライ弁',control:'調節弁'};
 function updateValveOptions(){
@@ -231,7 +267,8 @@ function buildNetwork(){
  }).catch(error=>{
   if(revision!==valveRevision)return;
   console.error('Pipe kit load failed; retaining fallback',error);
-  ui.info.textContent='精密配管モデルの読み込みに失敗しました。通信状況を確認して配管を再生成してください。';
+  ui.preview.dataset.alert='error';
+  ui.preview.textContent='配管モデルを読み込めませんでした。通信を確認して再生成してください。';
  });
  anchor.userData.materials=ownedMaterials;
  anchor.userData.textures=labelTextures;
@@ -244,9 +281,8 @@ function buildNetwork(){
   info('流量計算は利用できますが、水流の描画を準備できませんでした。');
  }
  refreshFlow();syncControls();
- ui.preview.textContent='配管は仮想の設備です。配置後はその位置に留まり、端末を動かすと横から観察できます。';
 }
-function resetPlacement(){clearHandOcclusion();ui.stage.classList.remove('ar-placed');if(anchor){anchor.visible=false;}modelReady=false;ui.reticle.classList.remove('is-placed');ui.distance.disabled=false;ui.height.disabled=false;ui.scale.disabled=false;ui.presetExplore.disabled=false;ui.presetOverview.disabled=false;ui.reset.disabled=true;ui.place.disabled=!tracking;Gestures.reset(gesture);showHandPoint(null,'');updateQuickAction();info('配置を解除しました。カメラで壁を映し、再配置してください。');}
+function resetPlacement(){clearHandOcclusion();ui.stage.classList.remove('ar-placed');if(anchor){anchor.visible=false;}modelReady=false;ui.reticle.classList.remove('is-placed');ui.distance.disabled=false;ui.height.disabled=false;ui.scale.disabled=false;ui.presetExplore.disabled=false;ui.presetOverview.disabled=false;ui.reset.disabled=true;Gestures.reset(gesture);showHandPoint(null,'');updateQuickAction();state(tracking?'ready':'loading',tracking?'配管を配置できます':'空間を認識中');info('＋を壁に向けて再配置してください。');}
 function placeModel(){
  if(!tracking||!camera||!anchor){info('追跡が安定してから配置してください。');return;}
  // Tracking comes from XR8; the approximate wall target is 1.5m along the view ray.
@@ -261,13 +297,14 @@ function placeModel(){
  anchor.rotation.set(0,Math.atan2(-flat.x,-flat.z),0);
  anchor.visible=true;anchor.updateMatrixWorld(true);
  ui.reticle.classList.add('is-placed');ui.distance.disabled=true;ui.height.disabled=true;ui.scale.disabled=false;ui.presetExplore.disabled=true;ui.presetOverview.disabled=true;
- modelReady=true;ui.stage.classList.add('ar-placed');ui.reset.disabled=false;ui.place.disabled=false;
+ modelReady=true;ui.stage.classList.add('ar-placed');ui.reset.disabled=false;
  Gestures.reset(gesture);updateQuickAction();
  ui.hand.textContent=landmarker?'手認識が有効です。バルブの前でピンチしてください。':'手認識を準備しています…';
  handStatus(landmarker?'ready':'idle',landmarker?'手認識：準備完了。バルブへ手を向けてください。':'手認識：モデルを読み込み中');
  if(video&&!landmarker&&!loadingHand)initializeHandTracking();
  if(video&&!handTimer)scheduleHandSampling();
- info('配管を配置しました。左右に動いて側面を確認し、バルブに手をかざしてください。');
+ state('ready','配管を配置しました');
+ info('バルブをつまんで回すか、タップで開閉できます。');
 }
 function projectMarkers(){
  if(!modelReady||!anchor||!camera)return [];
@@ -358,7 +395,7 @@ function pipePipelineModule(){return {
  name:'wallpipe-world-hand',
  onStart:()=>{
   releaseAnchorResources();
-  modelReady=false;tracking=false;fatalError=false;trackingSlow=false;
+  modelReady=false;tracking=false;trackingSlow=false;
   trackingGate.good=0;trackingGate.bad=0;trackingGate.stable=false;
   const xrscene=window.XR8.Threejs.xrScene();scene=xrscene.scene;camera=xrscene.camera;
   disposeHandOcclusion();
@@ -373,7 +410,7 @@ function pipePipelineModule(){return {
   const light=new THREE.DirectionalLight(0xffffff,1.5);light.position.set(-1,2,3);scene.add(light);
   anchor=new THREE.Group();anchor.name='wallpipe-fixed-world-anchor';anchor.visible=false;scene.add(anchor);
   window.XR8.XrController.updateCameraProjectionMatrix({origin:camera.position,facing:camera.quaternion});
-  buildNetwork();state('loading','カメラが起動しました。空間追跡を初期化中です。');
+  buildNetwork();state('loading','空間を認識中');info('模様のある床や家具をゆっくり映してください。');updateQuickAction();
  },
  onAttach:({video:sourceVideo,stream:sourceStream})=>{
   video=sourceVideo||null;
@@ -385,32 +422,44 @@ function pipePipelineModule(){return {
   if(video)scheduleHandSampling();
   if(modelReady&&!landmarker)initializeHandTracking();
  },
- onDetach:()=>{stopHandSampling();disposeHandOcclusion();handGeneration++;valveRevision++;try{landmarker?.close?.();}catch{}landmarker=null;clearHandOcclusion();if(ownedVideo){ownedVideo.pause();ownedVideo.srcObject=null;ownedVideo=null;}video=null;tracking=false;TrackingGate.update(trackingGate,'LIMITED',10,1);releaseAnchorResources();resetPlacement();showHandPoint(null,'');Gestures.reset(gesture);fatalError=true;state('error','ARのカメラ接続が終了しました。再起動してください。');updateQuickAction();ui.hand.textContent='ARが停止しました。再起動して配管を配置し直してください。';},
+ onDetach:()=>{stopHandSampling();disposeHandOcclusion();handGeneration++;valveRevision++;try{landmarker?.close?.();}catch{}landmarker=null;clearHandOcclusion();if(ownedVideo){ownedVideo.pause();ownedVideo.srcObject=null;ownedVideo=null;}video=null;tracking=false;TrackingGate.update(trackingGate,'LIMITED',10,1);releaseAnchorResources();resetPlacement();showHandPoint(null,'');Gestures.reset(gesture);failAR('カメラ接続が終了しました。ページを再読み込みしてください。');ui.hand.textContent='ARが停止しました。再起動して配管を配置し直してください。';},
  onUpdate:({processCpuResult})=>{
+  if(fatalError)return;
   const reality=processCpuResult?.reality;
   const status=reality?.trackingStatus||'INITIALIZING';
   const reason=reality?.trackingReason||'UNSPECIFIED';
   const stable=TrackingGate.update(trackingGate,status);
   if(stable!==tracking||status!==lastTracking||reason!==lastReason){
+   const lostTracking=tracking&&!stable;
    tracking=stable;lastTracking=status;lastReason=reason;
-   if(tracking){trackingSlow=false;if(fatalError)fatalError=false;updateQuickAction();}
+   if(tracking){trackingSlow=false;clearTimeout(trackingTimeout);}
+   else if(lostTracking&&!modelReady)waitForTracking();
    ui.trackingDetails.textContent=tracking?'追跡：安定（NORMAL）':status==='NORMAL'?'追跡：安定化中':status==='LIMITED'?`追跡：制限あり（${reason}）`:'追跡：初期化中';
    ui.rescan.disabled=false;
-   if(tracking){state('ready','空間追跡が安定しました。配管を配置できます。');ui.place.disabled=false;}
-   else{state('loading',status==='NORMAL'?'位置を安定化しています…':'追跡が不安定です。壁だけでなく模様のある床や家具もゆっくり映してください。');ui.place.disabled=true;}
+   if(tracking){
+    state('ready',modelReady?'配管を配置しました':'配管を配置できます');
+    info(modelReady?'バルブをつまんで回すか、タップで開閉できます。':'中央の＋を壁に向けて配置してください。');
+   }else if(!trackingSlow){
+    state('loading',modelReady?'空間追跡の復帰待ち':'空間を認識中');
+    info('模様のある床や家具をゆっくり映してください。');
+   }
    updateQuickAction();
   }
   if(tracking){animateFlow();if(lastMaskUpdate&&performance.now()-lastMaskUpdate>750)clearHandOcclusion();}else{showHandPoint(null,'');clearHandOcclusion();Gestures.reset(gesture);if(modelReady)handStatus('idle','手認識：空間追跡の復帰待ち');}
  },
  onCameraStatusChange:({status})=>{
-  if(status==='failed')failAR('カメラの起動に失敗しました。Safariのカメラ権限を確認し、ARを再起動してください。');
-  else if(status==='hasVideo'){fatalError=false;ui.trackingDetails.textContent='カメラ映像取得済み。SLAMの初期化を確認中。';updateQuickAction();}
+  if(status==='failed')failAR('ブラウザのカメラ権限を確認して再試行してください。3Dプレビューも利用できます。');
+  else if(status==='hasVideo'&&!fatalError){ui.trackingDetails.textContent='カメラ映像取得済み。SLAMの初期化を確認中。';updateQuickAction();}
  },
  onException:(e)=>{failAR('AR処理でエラーが発生しました。再起動してください。',e);}
 };}
 function startAR(){
- if(started||!window.XR8)return;
- started=true;ui.start.disabled=true;ui.start.textContent='ARカメラ実行中';ui.stage.classList.add('running');updateQuickAction();
+ if(started||!window.XR8||!deviceSupported)return;
+ started=true;
+ ui.stage.classList.add('running');
+ state('loading','カメラを起動中');
+ info('許可を求められたら、カメラの利用を許可してください。');
+ updateQuickAction();
  try{
   window.XR8.XrController.configure({disableWorldTracking:false,scale:'absolute'});
   const modules=[window.XR8.GlTextureRenderer.pipelineModule(),window.XR8.Threejs.pipelineModule(),window.XR8.XrController.pipelineModule()];
@@ -418,19 +467,35 @@ function startAR(){
   else ui.trackingDetails.textContent='全画面補正ライブラリを取得できません。再読み込みを試してください。';
   modules.push(pipePipelineModule());
   window.XR8.addCameraPipelineModules(modules);
-  const session=window.XR8.run({canvas:ui.canvas,allowedDevices:window.XR8.XrConfig.device().ANY,cameraConfig:{direction:window.XR8.XrConfig.camera().BACK}});
-  if(session&&typeof session.catch==='function')session.catch(e=>failAR('ARを開始できませんでした。再起動してください。',e));
-  setTimeout(()=>{if(started&&!tracking&&!modelReady&&!fatalError){
-    trackingSlow=true;updateQuickAction();
-    ui.trackingDetails.textContent='認識が続いています。明るい場所で、模様のある床・家具をゆっくり映してください。';
-    ui.rescan.disabled=false;
-  }},12000);
-  info('空間追跡を開始しています。壁の模様が見えるよう、ゆっくりカメラを動かしてください。');
- }catch(err){started=false;ui.stage.classList.remove('running');ui.start.disabled=false;ui.start.textContent='ARを起動';failAR('ARの起動に失敗しました。再起動してください。',err);}
+  const session=window.XR8.run({canvas:ui.canvas,allowedDevices:window.XR8.XrConfig.device().MOBILE,cameraConfig:{direction:window.XR8.XrConfig.camera().BACK}});
+  if(session&&typeof session.catch==='function')session.catch(e=>failAR('カメラの利用環境を確認して再試行してください。',e));
+  if(!fatalError)waitForTracking();
+ }catch(err){
+  started=false;ui.stage.classList.remove('running');
+  failAR('カメラの利用環境を確認して再試行してください。3Dプレビューも利用できます。',err);
+ }
 }
-function checkEngine(){if(window.XR8){fatalError=false;state('ready','ARエンジンの準備ができました。');ui.start.disabled=false;updateQuickAction();return true;}return false;}
+function checkEngine(){
+ if(engineChecked)return true;
+ if(!window.XR8?.XrDevice)return false;
+ engineChecked=true;
+ fatalError=false;
+ deviceSupported=Boolean(navigator.mediaDevices?.getUserMedia)&&
+  window.XR8.XrDevice.isDeviceBrowserCompatible({allowedDevices:window.XR8.XrConfig.device().MOBILE});
+ if(deviceSupported){
+  state('ready','カメラはオフです');
+  info('カメラを許可して、仮想の配管を空間に配置します。');
+ }else{
+  state('unsupported','この環境では空間固定ARを利用できません');
+  info('スマートフォン・タブレットで開くか、この端末で3Dプレビューをご覧ください。');
+ }
+ updateQuickAction();
+ return true;
+}
 window.addEventListener('xrloaded',checkEngine);
-if(!checkEngine())setTimeout(()=>{if(!window.XR8){failAR('ARエンジンを読み込めません。通信とSafariの設定を確認し、再起動してください。');ui.start.disabled=true;}},14000);
+if(!checkEngine())setTimeout(()=>{
+ if(!checkEngine())failAR('通信を確認して再試行するか、3Dプレビューをご覧ください。');
+},14000);
 ui.distance.addEventListener('input',()=>{ui.distanceOut.textContent=Number(ui.distance.value).toFixed(1)+'m';});
 ui.height.addEventListener('input',()=>{ui.heightOut.textContent=Math.round(Number(ui.height.value)*100)+'cm';});
 ui.scale.addEventListener('input',()=>{ui.scaleOut.textContent=Math.round(Number(ui.scale.value)*100)+'%';if(modelReady&&anchor)anchor.scale.setScalar(Number(ui.scale.value));});
@@ -448,28 +513,27 @@ function selectViewPreset(kind){
 ui.presetExplore.addEventListener('click',()=>selectViewPreset('explore'));
 ui.presetOverview.addEventListener('click',()=>selectViewPreset('overview'));
 
-ui.start.addEventListener('click',()=>{if(fatalError)window.location.reload();else startAR();});
-ui.rescan.addEventListener('click',()=>{
-  if(!started||!window.XR8)return;
-  trackingSlow=false;updateQuickAction();
-  resetPlacement();TrackingGate.reset(trackingGate);tracking=false;ui.place.disabled=true;updateQuickAction();
+function rescan(){
+  if(!started||!window.XR8||fatalError)return;
+  trackingSlow=false;
+  TrackingGate.reset(trackingGate);tracking=false;resetPlacement();waitForTracking();
   if(typeof window.XR8.XrController.recenter==='function')window.XR8.XrController.recenter();
   else if(camera)window.XR8.XrController.updateCameraProjectionMatrix({origin:camera.position,facing:camera.quaternion});
   ui.trackingDetails.textContent='追跡を再初期化中。模様のある場所をゆっくり映してください。';
-  state('loading','空間認識をやり直しています。');
-});
+  state('loading','空間を認識中');
+  info('模様のある床や家具をゆっくり映してください。');
+}
+ui.rescan.addEventListener('click',rescan);
 ui.occlusionToggle.addEventListener('change',()=>{if(!ui.occlusionToggle.checked)clearHandOcclusion();});
 window.addEventListener('resize',clearHandOcclusion);
 ui.handRetry.addEventListener('click',()=>{if(video&&!loadingHand){initializeHandTracking();}else ui.hand.textContent='先にARを開始し、配管を配置してください。';});
 document.addEventListener('visibilitychange',()=>{Gestures.reset(gesture);clearHandOcclusion();showHandPoint(null,'');lastInference=0;if(document.hidden&&started)ui.hand.textContent='アプリは一時停止中です。';else if(!document.hidden&&started)ui.hand.textContent=handInitFailed?'手認識を再試行するか、タッチで操作してください。':landmarker?'手認識が有効です。':'配管を配置すると手認識を準備します。';});
-ui.quick.addEventListener('click',()=>{if(fatalError){window.location.reload();return;}if(!started)startAR();else if(!modelReady){if(tracking)placeModel();else if(trackingSlow)ui.rescan.click();}});
-ui.place.addEventListener('click',placeModel);
+ui.quick.addEventListener('click',()=>{if(fatalError){window.location.reload();return;}if(!started)startAR();else if(!modelReady){if(tracking)placeModel();else if(trackingSlow)rescan();}});
 ui.reset.addEventListener('click',resetPlacement);
-ui.collapse.addEventListener('click',()=>{const closed=ui.panel.classList.toggle('is-collapsed');ui.collapse.setAttribute('aria-expanded',String(!closed));ui.collapse.textContent=closed?'操作を開く':'操作を閉じる';});
 ui.select.addEventListener('change',()=>setSelection(Number(ui.select.value)));
 ui.opening.addEventListener('input',()=>setOpening(selected,Number(ui.opening.value)/100));
 ui.toggle.addEventListener('click',()=>setOpening(selected,openings[selected]>.5?0:1));
-$('regen').addEventListener('click',()=>{buildNetwork();info(modelReady?'配管を再生成しました。空間位置は維持しています。':'配管を再生成しました。カメラを起動し配置してください。');});
+$('regen').addEventListener('click',()=>{if(!anchor||fatalError)return;buildNetwork();info(modelReady?'配管を再生成しました。空間位置は維持しています。':'配管を再生成しました。カメラを起動し配置してください。');});
 for(const b of document.querySelectorAll('[data-mode]'))b.addEventListener('click',()=>{mode=b.dataset.mode;for(const c of document.querySelectorAll('[data-mode]'))c.setAttribute('aria-pressed',String(c===b));buildNetwork();});
 ui.canvas.addEventListener('pointerup',e=>{if(!modelReady||!tracking)return;const idx=pickValve(e.clientX,e.clientY);if(idx>=0){setSelection(idx);setOpening(idx,openings[idx]>.5?0:1);ui.hand.textContent=`画面タップで V-0${idx+1} を操作しました。`;}});
 syncControls();updateQuickAction();

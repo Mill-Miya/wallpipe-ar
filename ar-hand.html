@@ -1,99 +1,120 @@
 <!doctype html>
-<html lang="ja" data-type="software">
+<!-- Canonical AR shell. After editing, copy index.html to ar-hand.html. -->
+<html lang="ja">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#f7f8f4">
-<meta name="description" content="空間固定した立体配管を、手の動きで操作するWallPipe AR実験。実物の壁内配管は検知しません。">
-<title>WallPipe AR v0.10.1｜曲がる水流・空間固定AR</title>
-<style>
-:root{font-family:system-ui,"Hiragino Kaku Gothic ProN",Meiryo,sans-serif;color:#25383b;--ink:#25383b;--muted:#5f7174;--edge:#c5d0cc;--paper:#f7f8f4;--accent:#0c7180;--warn:#ae5e36}
-*{box-sizing:border-box}html,body{margin:0;height:100%;background:#e1e6e3}button,select,input{font:inherit}button{cursor:pointer}button:disabled{cursor:not-allowed;opacity:.55}:focus-visible{outline:3px solid #c97c21;outline-offset:3px}
-#stage{position:fixed;inset:0;background:#d9e1de}#arCanvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;display:block}#stage:before{content:"";position:absolute;inset:0;background-image:linear-gradient(#c8d4ce 1px,transparent 1px),linear-gradient(90deg,#c8d4ce 1px,transparent 1px);background-size:78px 78px;opacity:.35;pointer-events:none}#stage.running:before{display:none}
-.topbar{position:fixed;z-index:3;top:0;left:0;right:0;min-height:62px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:calc(10px + env(safe-area-inset-top)) 18px 10px;background:#f7f8f4f3;border-bottom:1px solid var(--edge)}.brand{font-size:16px;font-weight:750;letter-spacing:-.025em}.brand small{display:block;font-size:11px;font-weight:400;color:var(--muted);letter-spacing:0;margin-top:3px}.topbar a{color:#245b63;font-size:12px;text-underline-offset:4px}
-.panel{position:fixed;right:17px;top:calc(84px + env(safe-area-inset-top));z-index:3;width:330px;max-height:calc(100dvh - 110px - env(safe-area-inset-top));overflow-y:auto;background:#f7f8f4f5;border:1px solid var(--edge);box-shadow:0 2px 12px #172e2c10;padding:20px}.eyebrow{font:11px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.06em;color:var(--muted);margin:0 0 7px}.panel h1{font-size:19px;line-height:1.35;margin:0 0 9px}.panel p{font-size:12px;line-height:1.75;margin:0 0 13px;color:#506265}.status{border-top:1px solid var(--edge);border-bottom:1px solid var(--edge);padding:12px 0;margin:13px 0;display:flex;gap:8px;align-items:flex-start}.status .dot{border-radius:50%;width:8px;height:8px;flex:none;margin-top:5px;background:#aa793c}.status[data-status="ready"] .dot{background:#138475}.status[data-status="error"] .dot{background:#a85035}.status span:last-child{font-size:12px;line-height:1.6;color:#30494c}
-.btn{width:100%;background:#fff;border:1px solid #a7bcb7;padding:11px 10px;border-radius:2px;font-size:13px;min-height:44px;color:var(--ink)}.btn:hover:not(:disabled){background:#e7efec}.btn.primary{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700}.btn.primary:hover:not(:disabled){background:#095b66}.btn:active:not(:disabled){filter:brightness(.93)}.controls{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:10px 0}.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:7px 0 12px}.grid3 button{font-size:11px;padding:10px 4px;min-height:41px}.grid3 button[aria-pressed=true]{background:#dceae6;border-color:var(--accent);color:#0b5862;font-weight:700}
-.section{border-top:1px solid var(--edge);margin-top:16px;padding-top:15px}.section label,.section h2{font-size:12px;font-weight:700;display:block;margin:0 0 10px}.setting{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:10px 0}.setting output{font:13px ui-monospace,Consolas,monospace;min-width:44px;text-align:right}.setting input{flex:1;min-width:0;accent-color:var(--accent)}#valveSelect{width:100%;padding:10px;background:#fff;border:1px solid #a7bcb7;min-height:42px}
-#preview{position:fixed;left:18px;top:calc(90px + env(safe-area-inset-top));z-index:2;max-width:calc(100% - 395px);background:#f7f8f4e8;border-left:3px solid var(--accent);padding:10px 12px;font-size:12px;line-height:1.6}#pointer{position:fixed;left:-100px;top:-100px;width:23px;height:23px;border:2px solid #e19c37;border-radius:50%;transform:translate(-50%,-50%);z-index:4;pointer-events:none;display:none;box-shadow:0 0 0 2px #253d3980}#pointer.grab{border-color:#1ac19c;background:#16a48a44}#info{position:fixed;bottom:calc(15px + env(safe-area-inset-bottom));left:18px;right:365px;z-index:2;max-width:800px;background:#f7f8f4e8;border:1px solid #bfd0c9;padding:9px 11px;font-size:11px;color:#4e6568;line-height:1.6}
-details{font-size:12px;line-height:1.7;color:#56676b;margin-top:13px}summary{cursor:pointer;font-weight:700;color:#2c5258}details ol{padding-left:21px}details li{margin:6px 0}.notice{font-size:11px!important;color:#6c7778!important}
-@media(max-width:720px){.topbar{min-height:58px;padding:calc(7px + env(safe-area-inset-top)) 13px 7px}.brand{font-size:14px}.brand small{font-size:10px}.topbar a{font-size:10px}.panel{left:0;right:0;top:auto;bottom:0;width:100%;max-height:60dvh;border-left:0;border-right:0;border-bottom:0;box-shadow:0 -2px 12px #152e2910;padding:10px 16px calc(10px + env(safe-area-inset-bottom))}.panel.is-collapsed{max-height:none}.panel.is-collapsed .panelbody{display:none}.panelHead{display:flex;align-items:center;justify-content:space-between;gap:12px}.panelHead h1{font-size:15px;margin:0}.panelHead .eyebrow{font-size:9px;margin-bottom:3px}#collapse{display:block!important;white-space:nowrap;width:auto;min-height:42px}.panel p{margin-bottom:9px}.status{margin:8px 0;padding:8px 0}#preview{top:calc(72px + env(safe-area-inset-top));left:12px;right:12px;max-width:none;font-size:11px;padding:8px}#info{left:12px;right:12px;bottom:calc(110px + env(safe-area-inset-bottom));font-size:10px;max-height:50px;overflow:hidden}.panel.is-collapsed~#info{bottom:100px}}
-@media(min-width:721px){#collapse{display:none!important}}@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}}
-
-#quickAction{position:fixed;z-index:3;left:18px;bottom:calc(82px + env(safe-area-inset-bottom));min-height:48px;padding:11px 18px;background:var(--accent);color:white;border:1px solid var(--accent);border-radius:2px;font-size:13px;font-weight:700;cursor:pointer}
-#quickAction[hidden]{display:none}#quickAction:disabled{opacity:.65;cursor:not-allowed}
-.handAdjust{display:flex;align-items:center;gap:10px;justify-content:space-between}.handAdjust label{font-size:12px;line-height:1.5}.handAdjust select{min-width:132px;max-width:160px;border:1px solid #a7bcb7;padding:8px 5px;background:white;color:var(--ink);font-size:12px;min-height:42px}
-@media(max-width:720px){#quickAction{left:12px;bottom:calc(164px + env(safe-area-inset-bottom));min-height:44px}#info{bottom:calc(110px + env(safe-area-inset-bottom))}}
-
-/* v0.8.3: full-window camera, compact mobile HUD */
-#stage,#arCanvas{width:100vw!important;height:100dvh!important;max-width:none!important;max-height:none!important;left:0!important;top:0!important}
-#arCanvas{display:block!important;object-fit:cover}
-@media(max-width:720px){
- #preview{right:12px;top:calc(69px + env(safe-area-inset-top));left:12px;max-width:unset;padding:7px 10px;font-size:11px;line-height:1.45;background:#f7f8f4e0}
- #info{bottom:calc(110px + env(safe-area-inset-bottom));max-height:none;overflow:visible;line-height:1.45}
- #quickAction{bottom:calc(172px + env(safe-area-inset-bottom));left:12px}
- .panel:not(.is-collapsed){max-height:64dvh}
-}
-#targetReticle{display:none;position:fixed;z-index:2;left:50%;top:48%;transform:translate(-50%,-50%);font:34px ui-monospace,SFMono-Regular,Consolas,monospace;font-weight:300;color:#e9ffff;text-shadow:0 1px 5px #18383ab3;pointer-events:none}
-#stage.running~#targetReticle{display:block}
-#stage.running~#targetReticle.is-placed{display:none}
-@media(max-width:720px){#targetReticle{top:43%}.setting label{font-size:11px;max-width:120px}.setting output{min-width:48px}}
-#handHud{position:fixed;left:12px;top:calc(185px + env(safe-area-inset-top));z-index:5;max-width:min(360px,calc(100vw - 24px));padding:8px 10px;color:#15393d;background:#f6faf3ef;border:1px solid #aebfb8;border-left:3px solid #717f7b;font-size:11px;line-height:1.5;pointer-events:none}
-#handHud[data-state="ready"]{border-left-color:#218b78}
-#handHud[data-state="tracking"]{border-left-color:#0b7e87}
-#handHud[data-state="error"]{border-left-color:#b64c39}
-@media(max-width:720px){#handHud{top:calc(146px + env(safe-area-inset-top));font-size:11px;max-width:min(290px,calc(100vw - 24px));padding:6px 9px}#preview{font-size:10px}}
-/* Hand foreground overlay; remains transparent outside the landmark mask. */
-/* Hidden bitmap supplies only a black/white depth mask texture; never redraws camera frames. */
-#handOcclusion{display:none!important;pointer-events:none}
-.occlusionToggle{display:flex!important;gap:10px;align-items:center;min-height:44px;font-weight:650!important}
-.occlusionToggle input{accent-color:var(--accent);width:18px;height:18px;flex:none}
-
-.explorePresets{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:12px 0 10px}
-.explorePresets button[aria-pressed="true"]{background:#dceae6;border-color:var(--accent);font-weight:700}
-#handFailureDetails{margin:8px 0 12px;padding:8px 10px;background:#fff4ed;color:#663d2a;border-left:3px solid #b35e40;font-size:11px;line-height:1.6;overflow-wrap:anywhere}
-
-/* AR view: once placed, prioritize the real world over instructional chrome. */
-#stage.ar-placed~#preview{display:none}
-#stage.ar-placed~#preview[data-alert="error"]{display:block;border-left-color:#b04b37;max-width:min(430px,calc(100vw - 24px))}
-@media(max-width:720px){
- .panel.is-collapsed{padding:7px 12px calc(7px + env(safe-area-inset-bottom));max-height:none;box-shadow:0 -1px 5px #182b2914}
- .panel.is-collapsed .eyebrow{display:none}
- .panel.is-collapsed .panelHead h1{font-size:13px}
- .panel.is-collapsed .panelHead button{font-size:12px;min-height:40px}
- #stage.ar-placed~#info{bottom:calc(70px + env(safe-area-inset-bottom));left:8px;right:8px;font-size:10px;max-height:44px;overflow:hidden;box-shadow:none}
- #stage.ar-placed~#handHud{top:calc(58px + env(safe-area-inset-top));max-width:min(250px,calc(100vw - 24px));background:#f7f8f4d9}
-}
-/* Mobile: hide the floating AR shortcut while the controls panel is expanded. */
-@media(max-width:720px){.panel:not(.is-collapsed)~#quickAction{display:none!important}}
-</style>
+<meta name="description" content="仮想の配管を空間に固定し、手やタップでバルブを操作できるAR実験。">
+<title>WallPipe AR</title>
+<link rel="canonical" href="https://mill-miya.github.io/wallpipe-ar/">
+<link rel="stylesheet" href="./css/ar.css?rev=20261122-ui1">
 <!-- 8th Wall binary: Copyright © 2026 Niantic Spatial, Inc. License: https://github.com/8thwall/engine/blob/main/LICENSE -->
-<script src="https://cdn.jsdelivr.net/npm/@8thwall/xrextras@1/dist/xrextras.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@8thwall/xrextras@1/dist/xrextras.js" defer crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@8thwall/engine-binary@1/dist/xr.js" async crossorigin="anonymous" data-preload-chunks="slam"></script>
 </head>
 <body>
-<div id="stage"><canvas id="arCanvas" aria-label="空間固定した3D配管とバルブのAR画面"></canvas><canvas id="handOcclusion" aria-hidden="true"></canvas></div>
-<header class="topbar"><div class="brand">WallPipe AR<small>空間固定・手操作 v0.10.1</small></div><a href="./index.html">シミュレーターへ戻る</a></header>
-<div id="preview">配管はまだ配置されていません。空間追跡が始まったら正面の壁に向け、配置ボタンを押してください。</div>
-<div id="targetReticle" aria-hidden="true">＋</div><div id="pointer" aria-hidden="true"></div><div id="handHud" data-state="idle" role="status" aria-live="polite">手認識：配管配置後に起動</div>
-<aside class="panel is-collapsed" id="panel" aria-label="AR操作"><div class="panelHead"><div><div class="eyebrow">LIVE AR / HAND CONTROL</div><h1>バルブを手で回す</h1></div><button class="btn" id="collapse" type="button" aria-expanded="false">操作を開く</button></div><div class="panelbody">
-<p>配管を空間に配置したあと、バルブの取っ手を指でつまみ、手を回転させます。配管は画面ではなく空間に固定します。</p>
-<div class="status" data-status="loading" role="status" aria-live="polite" id="status"><span class="dot"></span><span id="statusText">ARエンジンを読み込み中です。</span></div>
-<button type="button" id="start" class="btn primary" disabled>ARカメラを開始</button>
-<div class="controls"><button id="place" type="button" class="btn" disabled>この向きに配管を配置</button><button id="reset" type="button" class="btn" disabled>配置を解除</button></div>
-<div class="section"><h2>空間認識</h2><div id="trackingDetails" role="status" style="font-size:12px;line-height:1.6;margin-bottom:9px">未開始</div><button id="rescan" type="button" class="btn" disabled>空間認識をやり直す</button><div class="explorePresets" role="group" aria-label="ARの観察方法">
- <button type="button" class="btn" id="presetExplore" aria-pressed="true">近くで探索</button>
- <button type="button" class="btn" id="presetOverview" aria-pressed="false">全体を確認</button>
+<div id="stage">
+  <canvas id="arCanvas" aria-label="仮想配管とバルブのAR表示"></canvas>
+  <canvas id="handOcclusion" aria-hidden="true"></canvas>
 </div>
-<p class="notice">近くで探索：配管が画面外まで続く大きさで配置します。スマホを左右に動かして各バルブを観察してください。全体を確認：配置前の位置と倍率を遠めに設定します。</p>
-<div class="setting"><label for="placeDistance">配置までの推定距離</label><input id="placeDistance" type="range" min="0.7" max="3.5" value="1.3" step="0.1"><output id="placeDistanceOut" for="placeDistance">1.3m</output></div><div class="setting"><label for="placeHeight">高さの微調整</label><input id="placeHeight" type="range" min="-0.6" max="0.6" value="0" step="0.05"><output id="placeHeightOut" for="placeHeight">0cm</output></div><div class="setting"><label for="placeScale">配管の表示倍率</label><input id="placeScale" type="range" min="0.65" max="2.60" value="1.85" step="0.05"><output id="placeScaleOut" for="placeScale">185%</output></div><p class="notice">距離は配置前だけ、倍率は配置後でも調整可能です。壁の実測距離ではありません。</p><p class="notice">模様の少ない壁だけでは認識しにくいため、床や家具など特徴がある場所もゆっくり映してください。壁の位置を自動検出する機能ではありません。中央の＋を目安に距離と高さを調整して配置してください。</p></div><div class="section"><h2>配管の種類</h2><div class="grid3" role="group" aria-label="設備の種類"><button class="btn" type="button" data-mode="water" aria-pressed="true">給水</button><button class="btn" type="button" data-mode="air" aria-pressed="false">空調</button><button class="btn" type="button" data-mode="plant" aria-pressed="false">工場</button></div><button id="regen" type="button" class="btn">配管を再生成</button></div>
-<div class="section"><label for="valveSelect">操作するバルブ</label><select id="valveSelect"><option value="0">V-01</option><option value="1">V-02</option><option value="2">V-03</option></select><div class="setting"><label for="opening" style="margin:0">開度</label><input id="opening" type="range" min="0" max="100" value="100"><output for="opening" id="openingOut">100%</output></div><button id="toggle" type="button" class="btn">選択したバルブを閉める</button><div id="flowSummary" role="status" style="margin-top:9px;font-size:12px">通水系統：3 / 3</div></div>
-<div class="section"><h2>手認識</h2><label class="occlusionToggle" for="handOcclusionToggle"><input type="checkbox" id="handOcclusionToggle" checked> 手の部分だけ3D描画を隠す（試験）</label><p class="notice">認識した手の形に合わせて、配管とバルブの3D描画だけを隠します。カメラ映像は再描画しません。輪郭や奥行きは近似です。</p><div id="handState" role="status" style="font-size:12px;line-height:1.6">配管を配置すると手認識を準備します。</div><div id="handFailureDetails" role="status" hidden></div><button type="button" class="btn" id="handRetry" style="display:none;margin-top:10px">手認識を再試行</button><div class="handAdjust"><label for="handTransform">指先表示の位置補正</label><select id="handTransform"><option value="normal">標準</option><option value="mirror">左右反転</option><option value="cw90">右90°回転</option><option value="ccw90">左90°回転</option><option value="rotate180">180°回転</option></select></div><p class="notice">指先の目印と実際の手がずれる場合だけ補正してください。映像の縦横比に合わせた座標変換を行います。</p><p class="notice">1本の指では作動しません。3Dバルブの近くでピンチ・回転するか、開いた手を約1.4秒かざしてください。画面に表示される「手認識」の状態を確認できます。</p></div>
-<details><summary>操作方法と制約</summary><ol><li>周囲が明るく、特徴のある壁へカメラを向けてARを開始します。</li><li>追跡が安定したら「この向きに配管を配置」を押します。表示位置はカメラ前方を基準にした推定位置で、壁面の自動検出ではありません。</li><li>バルブに手を近づけてピンチ・回転。認識に失敗する場合は画面タップ、スライダーでも操作できます。</li><li>配置したモデルはリセットするまで同じワールド座標を使います。追跡が失われるとズレる場合があります。</li></ol></details>
-<p class="notice">実際の配管や壁内部は検知しません。手とバルブの距離は画像上で近似し、奥行き方向の接触は判定していません。カメラ映像はアプリ独自のサーバーに送信しませんが、外部SDKと機械学習モデルを読み込みます。</p>
-<p class="notice">空間認識がどうしても進まない場合は、<a href="./spatial-test.html">Apple純正ARを利用する配置テスト</a>を使用できます。ただし、その画面では手の認識は動作しません。</p><p class="notice"><a href="https://github.com/8thwall/engine/blob/main/LICENSE" target="_blank" rel="noopener">XR Engineライセンス</a> ｜ Copyright © 2026 Niantic Spatial, Inc.</p>
-</div></aside>
-<button type="button" id="quickAction" disabled>ARカメラを開始</button>
-<div id="info" role="status" aria-live="polite">ARの開始前です。インターネット接続とカメラへの許可が必要です。</div>
+<div id="targetReticle" aria-hidden="true"></div>
+<div id="pointer" aria-hidden="true"></div>
+<div class="app" id="app" data-phase="loading">
+  <header class="topbar">
+    <div class="brand">
+      <a class="maker" href="https://mill-miya.github.io/" target="_blank" rel="noopener noreferrer" aria-label="Mill-Miyaのポートフォリオ（新しいタブ）">
+        <img src="./assets/brand/r-logo-black.svg" width="30" height="30" alt="">
+      </a>
+      <div class="brand-name"><h1>WallPipe AR</h1><span>Mill-Miya</span></div>
+    </div>
+    <a class="preview-link" href="./pipe-preview.html" target="_blank" rel="noopener noreferrer" aria-label="配管の3Dプレビュー（新しいタブ）">3Dプレビュー <span aria-hidden="true">↗</span></a>
+  </header>
+
+  <main class="workspace" aria-label="AR操作" tabindex="-1">
+    <div class="camera-hud">
+      <div id="handHud" data-state="idle" aria-hidden="true"></div>
+      <div id="preview" role="status"></div>
+    </div>
+    <div class="console">
+      <div class="dock">
+        <div class="status" data-status="loading" role="status" id="status">
+          <span class="dot" aria-hidden="true"></span><span id="statusText">ARの準備中</span>
+        </div>
+        <p id="info" role="status">カメラを許可して、仮想の配管を空間に配置します。</p>
+        <div class="actions">
+          <button id="quickAction" class="btn primary" type="button" disabled>ARカメラを開始</button>
+          <button id="reset" type="button" class="btn" hidden disabled>配置を解除</button>
+          <button id="collapse" class="btn disclosure" type="button" aria-expanded="false" aria-controls="panel">設定と使い方</button>
+        </div>
+        <noscript><p>ARを使うにはJavaScriptを有効にしてください。</p></noscript>
+      </div>
+
+      <section class="panel" id="panel" aria-label="設定と使い方" hidden>
+        <fieldset id="valveControls" class="section" hidden disabled>
+          <legend>バルブ操作</legend>
+          <label for="valveSelect">操作するバルブ</label>
+          <select id="valveSelect"><option value="0">V-01</option></select>
+          <div class="setting"><label for="opening">開度</label><input id="opening" type="range" min="0" max="100" value="100"><output for="opening" id="openingOut">100%</output></div>
+          <button id="toggle" type="button" class="btn">選択したバルブを閉める</button>
+          <div id="flowSummary" class="readout" role="status"></div>
+        </fieldset>
+        <fieldset class="section">
+          <legend>配管の種類</legend>
+          <div class="grid3" role="group" aria-label="設備の種類">
+            <button class="btn" type="button" data-mode="water" aria-pressed="true">給水</button>
+            <button class="btn" type="button" data-mode="air" aria-pressed="false">空調</button>
+            <button class="btn" type="button" data-mode="plant" aria-pressed="false">工場</button>
+          </div>
+          <button id="regen" type="button" class="btn" disabled>配管を再生成</button>
+        </fieldset>
+        <details>
+          <summary>配置・空間認識</summary>
+          <div class="detail-body">
+            <p id="trackingDetails" class="readout">未開始</p>
+            <div class="grid2" role="group" aria-label="観察方法">
+              <button type="button" class="btn" id="presetExplore" aria-pressed="true">近くで探索</button>
+              <button type="button" class="btn" id="presetOverview" aria-pressed="false">全体を確認</button>
+            </div>
+            <div class="setting"><label for="placeDistance">推定距離</label><input id="placeDistance" type="range" min="0.7" max="3.5" value="1.3" step="0.1"><output id="placeDistanceOut" for="placeDistance">1.3m</output></div>
+            <div class="setting"><label for="placeHeight">高さ</label><input id="placeHeight" type="range" min="-0.6" max="0.6" value="0" step="0.05"><output id="placeHeightOut" for="placeHeight">0cm</output></div>
+            <div class="setting"><label for="placeScale">表示倍率</label><input id="placeScale" type="range" min="0.65" max="2.60" value="1.85" step="0.05"><output id="placeScaleOut" for="placeScale">185%</output></div>
+            <p class="note">推定距離と高さは配置前に調整できます。配置後も表示倍率を変更できます。</p>
+            <button id="rescan" type="button" class="btn" disabled>空間認識をやり直す</button>
+          </div>
+        </details>
+        <details>
+          <summary>手認識</summary>
+          <div class="detail-body">
+            <p id="handState" class="readout" role="status">配管を配置すると手認識を準備します。</p>
+            <div id="handFailureDetails" class="note error" role="status" hidden></div>
+            <button type="button" class="btn" id="handRetry" style="display:none">手認識を再試行</button>
+            <label class="check"><input type="checkbox" id="handOcclusionToggle" checked>手に重なる3D描画を隠す（試験）</label>
+            <div class="select-row"><label for="handTransform">指先の位置補正</label><select id="handTransform">
+              <option value="normal">標準</option><option value="mirror">左右反転</option><option value="cw90">右90°回転</option><option value="ccw90">左90°回転</option><option value="rotate180">180°回転</option>
+            </select></div>
+            <p class="note">指先の目印が実際の手からずれるときに補正します。手とバルブの距離や遮蔽の輪郭は、映像から近似します。</p>
+          </div>
+        </details>
+        <details>
+          <summary>使い方と動作環境</summary>
+          <div class="detail-body">
+            <ol>
+              <li>カメラを許可し、模様のある床や家具をゆっくり映します。</li>
+              <li>＋を壁に向けて配管を配置します。実際の壁や壁内の配管は検知しません。</li>
+              <li>バルブをつまんで回すか、手を約1.4秒かざすと操作できます。タップや開度スライダーでも操作できます。</li>
+            </ol>
+            <p class="note">スマートフォン・タブレット向けです。iPhone・iPadはSafariを推奨します。外部SDKと認識モデルの読み込みには通信が必要です。</p>
+            <a class="text-link" href="./valve-preview.html" target="_blank" rel="noopener noreferrer">バルブの3Dプレビュー ↗</a>
+            <a class="text-link" href="./spatial-test.html" target="_blank" rel="noopener noreferrer">Apple端末向けの配置テスト（手操作なし） ↗</a>
+            <a class="text-link" href="https://github.com/8thwall/engine/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">XR Engineライセンス ↗</a>
+            <p class="note">Copyright © 2026 Niantic Spatial, Inc.</p>
+          </div>
+        </details>
+      </section>
+    </div>
+  </main>
+</div>
 <script src="./js/piping-engine.js"></script>
 <script src="./js/valve-placement.js"></script>
 <script src="./js/gesture-control.js"></script>
@@ -102,15 +123,7 @@ details{font-size:12px;line-height:1.7;color:#56676b;margin-top:13px}summary{cur
 <script src="./js/flow-visuals.js?rev=20261118-bend1"></script>
 <script src="./js/hand-model-loader.js"></script>
 <script src="./js/tracking-gate.js"></script>
+<script src="./js/ar-shell.js?rev=20261122-ui1" defer></script>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script>
-<script type="module">
-import * as THREE from 'three';
-window.THREE=THREE;
-try {
- window.WallPipeValveAssets=await import('./js/valve-assets.js');
- window.WallPipePipeAssets=await import('./js/pipe-assets.js?rev=20261118-bend1');
- await import('./js/ar-hand.js?rev=20261118-bend1');
-} catch(err) { document.getElementById('statusText').textContent='ARアプリを起動できません。ライブラリの読み込みと通信状況を確認してください。';document.getElementById('status').dataset.status='error';console.error(err); }
-</script>
 </body>
 </html>

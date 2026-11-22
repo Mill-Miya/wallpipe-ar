@@ -2,7 +2,7 @@ import http from 'node:http';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 const root=process.cwd();
-const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.glb':'model/gltf-binary','.css':'text/css; charset=utf-8','.json':'application/json'};
+const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.glb':'model/gltf-binary','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.json':'application/json'};
 const server=http.createServer(async(req,res)=>{
  const uri=new URL(req.url||'/', 'http://127.0.0.1');
  const normalized=path.posix.normalize(decodeURIComponent(uri.pathname)).replace(/^\/+/, '');

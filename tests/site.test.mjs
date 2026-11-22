@@ -9,7 +9,7 @@ const read=p=>readFileSync(resolve(root,p),'utf8');
 let count=0;
 function check(ok,reason){assert.ok(ok,reason);count++}
 function eq(a,b,reason){assert.equal(a,b,reason);count++}
-for(const path of ['index.html','spatial-test.html','README.md','js/piping-engine.js']){
+for(const path of ['index.html','ar-hand.html','spatial-test.html','README.md','js/piping-engine.js']){
   check(existsSync(resolve(root,path)),path+' missing');
   const text=read(path);
   check(!/KITZ|キッツ|北澤|田草川/i.test(text),path+' includes company-specific references');
@@ -21,8 +21,11 @@ for(const path of ['index.html','spatial-test.html','README.md','js/piping-engin
     const local=resolve(root,dirname(path),url.split(/[?#]/)[0]);
     check(local.startsWith(root+'/')&&existsSync(local),path+' broken resource '+url);
   }
-  for(const [,code] of text.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)){
-    if(code.trim()){new vm.Script(code,{filename:path});count++}
+  for(const [,attributes,code] of text.matchAll(/<script(?![^>]*\bsrc=)([^>]*)>([\s\S]*?)<\/script>/gi)){
+    if(!code.trim())continue;
+    if(/type="importmap"/.test(attributes))JSON.parse(code);
+    else new vm.Script(code,{filename:path});
+    count++;
   }
 }
 const page=read('spatial-test.html');

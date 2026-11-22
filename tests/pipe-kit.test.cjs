@@ -14,11 +14,10 @@ for(const m of gltf.meshes)for(const primitive of m.primitives){
 }
 assert(triangles>10000&&triangles<90000,'poly budget: '+triangles);
 assert(kit.length<1500000,'GLB too large');
-const html=fs.readFileSync('ar-hand.html','utf8');
 const app=fs.readFileSync('js/ar-hand.js','utf8');
 const loader=fs.readFileSync('js/pipe-assets.js','utf8');
 const home=fs.readFileSync('pipe-preview.html','utf8');
-assert(/import\(['"]\.\/js\/pipe-assets\.js\?rev=[^'"]+['"]\)/.test(html),'AR boot must load a cache-busted pipe kit');
+assert(/import\(['"]\.\/pipe-assets\.js\?rev=[^'"]+['"]\)/.test(fs.readFileSync('js/ar-shell.js','utf8')),'AR boot must load a cache-busted pipe kit');
 assert(app.includes('PipeAssets.createPipeAssembly(network,{mode})'),'AR must build from engineering network');
 assert(app.includes('anchor.userData.pipeAssetRoot'),'Pipe kit roots must be tracked for cleanup');
 assert(!app.includes('obj.geometry.dispose();}});anchor.remove(child);'),'No indiscriminate geometry cleanup');

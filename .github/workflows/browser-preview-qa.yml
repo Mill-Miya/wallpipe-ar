@@ -3,6 +3,13 @@ on:
   push:
     branches: [main]
     paths:
+      - 'index.html'
+      - 'ar-hand.html'
+      - 'css/ar.css'
+      - 'js/ar-shell.js'
+      - 'js/ar-hand.js'
+      - 'assets/brand/r-logo-black.svg'
+      - 'tests/browser-ar-ui.test.mjs'
       - 'pipe-preview.html'
       - 'js/pipe-assets.js'
       - 'js/pipe-layout.js'
@@ -42,6 +49,7 @@ jobs:
         run: |
           node tools/serve-preview.mjs > /tmp/wallpipe-server.log 2>&1 &
           sleep 2
+          node tests/browser-ar-ui.test.mjs
           node tests/browser-preview.test.mjs
           node tests/browser-depth-mask.test.mjs
           node tests/browser-flow-bars.test.mjs
@@ -51,6 +59,7 @@ jobs:
         with:
           name: factory-chromium-screenshot
           path: |
+            /tmp/wallpipe-ui-*.png
             /tmp/wallpipe-factory-browser.png
             /tmp/wallpipe-depth-mask-webgl.png
             /tmp/wallpipe-three-water-jets.png

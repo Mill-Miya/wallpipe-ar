@@ -29,5 +29,6 @@ for(let i=0;i<9;i++)T.update(gate,'NORMAL');
 assert.equal(gate.stable,true);
 const fs=require('node:fs'),path=require('node:path');
 const app=fs.readFileSync(path.join(__dirname,'../js/ar-hand.js'),'utf8');
-assert.match(app,/ui\.rescan\.addEventListener\('click',[\s\S]*?TrackingGate\.reset\(trackingGate\)/,'AR rescan must reset the hysteresis state');
+assert.match(app,/function rescan\(\)\{[^}]*TrackingGate\.reset\(trackingGate\)/,'AR rescan must reset the hysteresis state');
+assert.match(app,/ui\.rescan\.addEventListener\('click',rescan\)/);
 console.log('PASS: crop, 4 alignment corrections, invalid inputs and SLAM tracking hysteresis');

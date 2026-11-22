@@ -1,3 +1,9 @@
+## 公開版の入口
+
+[WallPipe AR](https://mill-miya.github.io/wallpipe-ar/) を開くと、ARの操作画面を直接表示します。カメラは開始ボタンを押してから起動します。PCなど空間固定ARを利用できない環境では、ヘッダーから3Dプレビューを開けます。
+
+AR画面のHTMLを編集するときは `index.html` を更新し、`cp index.html ar-hand.html` で旧URL向けにも反映してください。CSSと起動スクリプトは両方のURLで共通です。`node tests/entrypoint.test.cjs` で両方のHTMLが一致することを確認できます。ARのCSSや起動スクリプトを更新するときは変更したアセットの `rev` も更新してください。
+
 ## v0.9.9｜全末端の独立した吐水・水流バー・近接拡大（2026-11-12）
 
 - **修正指示書:** [v0.9.9の実装仕様](docs/implementation-v099-flow-and-scale.md)。これに基づいて実装し、検証まで実施。
@@ -162,7 +168,9 @@
 
 | ファイル | 役割 |
 | --- | --- |
-| `index.html` | UI・Canvas描画・カメラ・センサの操作 |
+| `index.html` / `ar-hand.html` | 公開AR画面と互換URL |
+| `css/ar.css` / `js/ar-shell.js` | UIの配置・詳細パネル・AR起動 |
+| `js/ar-hand.js` | 空間追跡、カメラ、配管の描画と操作 |
 | `js/piping-engine.js` | 乱数による配管の接続構造生成、抵抗ネットワークの簡易計算（依存ライブラリなし） |
 | `tests/piping.test.cjs` | 生成構造、流路連続性、バルブ開閉を自動検証 |
 | `assets/*.glb` | 3D / AR用の固定サンプル模型（24種類） |
