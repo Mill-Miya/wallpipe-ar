@@ -17,14 +17,15 @@ app.addEventListener('keydown', event => {
 
 async function loadAR() {
   try {
-    window.WallPipeDesktopPreview = !/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) &&
-      !(navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    window.WallPipeDesktopPreview = document.documentElement.dataset.preview==='true' ||
+      (!/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) &&
+      !(navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
     window.THREE = await import('three');
     [window.WallPipeValveAssets, window.WallPipePipeAssets] = await Promise.all([
       import('./valve-assets.js'),
       import('./pipe-assets.js?rev=20261118-bend1')
     ]);
-    await import('./ar-hand.js?rev=20261122-ui2');
+    await import('./ar-hand.js?rev=20261122-ui3');
   } catch (error) {
     app.dataset.phase = 'error';
     document.getElementById('status').dataset.status = 'error';

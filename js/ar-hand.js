@@ -131,11 +131,11 @@ function waitForTracking(){
   if(!started||tracking||modelReady||fatalError)return;
   trackingSlow=true;
   state('loading','空間認識に時間がかかっています');
-  info('明るい場所で、模様のある床や家具をゆっくり映してください。');
+  info('明るい場所で床・家具・壁の角をゆっくり映してください。カーテンや無地の壁だけでは認識しにくくなります。');
   ui.trackingDetails.textContent='認識をやり直せます。';
   ui.rescan.disabled=false;
   updateQuickAction();
- },12000);
+ },8000);
 }
 const valveNames={ball:'ボール弁',gate:'仕切弁',butterfly:'バタフライ弁',control:'調節弁'};
 function updateValveOptions(){
@@ -555,14 +555,14 @@ async function startDesktopPreview(){
  renderer.outputColorSpace=THREE.SRGBColorSpace;
  scene=new THREE.Scene();
  camera=new THREE.PerspectiveCamera(45,1,.01,100);
- camera.position.set(.2,.1,3.4);
+ camera.position.set(.2,.1,3.4*Math.max(1,.9/(ui.canvas.clientWidth/ui.canvas.clientHeight)));
  scene.add(new THREE.HemisphereLight(0xffffff,0x647b72,2));
  const light=new THREE.DirectionalLight(0xffffff,2);
  light.position.set(-1,2,3);scene.add(light);
  anchor=new THREE.Group();scene.add(anchor);
  const controls=new OrbitControls(camera,ui.canvas);
  controls.target.set(0,0,.06);controls.enableDamping=true;
- controls.minDistance=.7;controls.maxDistance=8;
+ controls.minDistance=.7;controls.maxDistance=12;
  function resize(){
   const rect=ui.canvas.getBoundingClientRect();
   renderer.setSize(rect.width,rect.height,false);

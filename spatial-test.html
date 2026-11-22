@@ -47,11 +47,12 @@ h1 { font-size:clamp(26px,2.8vw,39px); letter-spacing:-.04em; line-height:1.2; m
 @media (max-width:760px){.siteHead{height:60px}.container{grid-template-columns:1fr;padding:0 0 20px;gap:0}.stage{min-height:0;height:min(56dvh,540px);border-left:0;border-right:0}.sidebar{padding:22px 18px 10px;gap:15px}.previewTag{top:13px;left:12px}.dimension{left:12px;bottom:12px}.arLaunch{bottom:55px}h1{font-size:27px}.guide li{padding-bottom:10px}.guide{padding-top:15px}}
 @media(max-width:375px){.siteHead{height:auto;min-height:60px;flex-wrap:wrap;gap:5px;padding:10px 14px}.siteHead a{font-size:11px}.container{min-height:calc(100dvh - 82px)}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+header{min-height:76px!important;height:auto!important;padding-top:max(8px,env(safe-area-inset-top))!important;padding-bottom:8px!important}.maker-credit{display:flex!important;align-items:center;justify-content:center;flex:0 0 56px;min-height:56px}.maker-credit img{display:block;width:46px;height:46px;object-fit:contain}header>div,header>b{flex:1;min-width:0}header>a:last-child{min-height:44px;display:flex;align-items:center}
 </style>
 <script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@4.4.0/dist/model-viewer.min.js"></script>
 </head>
 <body>
-<header class="siteHead"><div class="brand">WallPipe AR <small>SPATIAL TRACKING / EXPERIMENT</small></div><a href="./index.html">配管シミュレーターに戻る</a></header>
+<header class="siteHead"><a class="maker-credit" href="https://mill-miya.github.io/" target="_blank" rel="noopener noreferrer" aria-label="Mill-Miyaのポートフォリオ（新しいタブ）"><img src="./assets/brand/r-logo-black.svg" width="46" height="46" alt=""></a><div class="brand">WallPipe AR <small>SPATIAL TRACKING / EXPERIMENT</small></div><a href="./index.html">配管シミュレーターに戻る</a></header>
 <main class="container">
   <section class="stage" aria-label="立体配管モデルのプレビュー">
     <div class="previewTag">位置固定・視差の検証用3Dモデル</div>

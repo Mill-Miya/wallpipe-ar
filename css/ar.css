@@ -13,9 +13,9 @@
   --bottom: max(12px, env(safe-area-inset-bottom));
 }
 
-* { box-sizing: border-box; }
+*, .app, .app * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-body { margin: 0; }
+html, body { margin: 0; width: 100%; overflow-x: hidden; overscroll-behavior-x: none; }
 h1, p { margin: 0; }
 button, select, input { font: inherit; }
 button, summary { cursor: pointer; }
@@ -74,9 +74,9 @@ a:hover { color: #092f36; }
   align-items: center;
   justify-content: center;
 }
-.maker { min-width: 44px; border: 1px solid var(--edge); border-radius: 2px; }
+.maker { min-width: 56px; min-height: 56px; border: 1px solid var(--edge); border-radius: 2px; }
 .maker:hover { background: #e4eeea; border-color: var(--accent); }
-.maker img { display: block; width: 30px; height: 30px; }
+.maker img { display: block; width: 46px; height: 46px; }
 .preview-link { gap: 5px; font-size: 13px; font-weight: 650; white-space: nowrap; }
 .preview-link span { font-size: 15px; }
 
@@ -156,7 +156,11 @@ a:hover { color: #092f36; }
   grid-area: panel;
   max-height: min(56vh, 420px);
   max-height: min(56dvh, 420px);
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-width: 0;
+  width: 100%;
+  touch-action: pan-y;
   overscroll-behavior: contain;
   scroll-padding: 12px;
   padding: 4px 14px;
@@ -242,7 +246,7 @@ summary:hover { color: var(--accent); }
   .workspace { padding-top: 6px; }
   .dock { padding-block: 8px; }
   .panel, .app:is([data-phase="loading"], [data-phase="idle"], [data-phase="unsupported"]) .panel {
-    max-height: max(64px, calc(100dvh - 216px));
+    max-height: max(64px, calc(100dvh - 252px));
   }
   .app:is([data-phase="scanning"], [data-phase="place"], [data-phase="placed"], [data-phase="error"]) .console {
     width: min(47vw, 390px);
@@ -253,3 +257,9 @@ summary:hover { color: var(--accent); }
 #targetReticle { z-index: 999; }
 .app[data-preview="true"] #handHud { display: none; }
 .app[data-preview="true"] .preview-link { display: none; }
+
+.console, .dock, .panel { min-width: 0; max-width: 100%; }
+.panel * { max-width: 100%; }
+
+.return-ar { display: none; min-height: 44px; align-items: center; font-size: 13px; }
+.app[data-preview="true"] .return-ar { display: flex; }

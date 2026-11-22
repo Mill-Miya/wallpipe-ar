@@ -27,12 +27,13 @@ p{line-height:1.65}.lede{font-size:13px;color:#4e6465;margin:0 0 17px}.section{b
 @media(max-width:760px){header{height:60px}main{height:auto;min-height:calc(100dvh - 60px);display:block}.stage{height:57dvh;min-height:310px}.side{border-left:0;border-top:1px solid var(--line);padding:20px 17px 35px}.stageLabel{top:10px;left:10px}.instructions{left:10px;right:10px;bottom:10px;font-size:11px}h1{font-size:21px}.section{padding:15px 0}}
 @media(max-width:370px){header{padding:0 10px}header a{font-size:11px}.controls{gap:6px}button{padding:9px 7px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{transition:none!important;animation:none!important}}
+header{min-height:76px!important;height:auto!important;padding-top:max(8px,env(safe-area-inset-top))!important;padding-bottom:8px!important}.maker-credit{display:flex!important;align-items:center;justify-content:center;flex:0 0 56px;min-height:56px}.maker-credit img{display:block;width:46px;height:46px;object-fit:contain}header>div,header>b{flex:1;min-width:0}header>a:last-child{min-height:44px;display:flex;align-items:center}
 </style>
 <script src="./js/piping-engine.js" defer></script>
 <script src="./js/gesture-control.js" defer></script>
 </head>
 <body>
-<header><div><strong>WallPipe AR</strong><small>HAND INTERACTION / EXPERIMENT 02</small></div><a href="./spatial-test.html">空間固定テストを見る</a></header>
+<header><a class="maker-credit" href="https://mill-miya.github.io/" target="_blank" rel="noopener noreferrer" aria-label="Mill-Miyaのポートフォリオ（新しいタブ）"><img src="./assets/brand/r-logo-black.svg" width="46" height="46" alt=""></a><div><strong>WallPipe AR</strong><small>HAND INTERACTION / EXPERIMENT 02</small></div><a href="./spatial-test.html">空間固定テストを見る</a></header>
 <main>
 <section class="stage" id="stage" aria-label="手とバルブのカメラ合成画面">
  <video id="feed" autoplay muted playsinline aria-label="カメラ映像"></video>

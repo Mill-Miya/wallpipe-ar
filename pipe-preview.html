@@ -1,141 +1,130 @@
 <!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="WallPipe ARの新しい配管と継手の3Dモデルを回転・拡大して確認するページ。">
-<title>配管の3Dモデル｜WallPipe AR</title>
-<style>
-:root{font-family:system-ui,-apple-system,"Hiragino Kaku Gothic ProN",Meiryo,sans-serif;color:#22383b;background:#f4f5f1}
-*{box-sizing:border-box}body{margin:0}button{font:inherit;cursor:pointer}a{color:#236873;text-underline-offset:4px}
-header{padding:17px clamp(16px,4vw,48px);display:flex;justify-content:space-between;align-items:center;gap:14px;border-bottom:1px solid #cbd4d0}
-h1{font-size:19px;letter-spacing:-.025em;margin:0}.sub{font-size:12px;color:#617477;margin-top:4px}
-main{display:grid;grid-template-columns:minmax(0,1fr) 285px;min-height:calc(100dvh - 75px)}
-#stage{background:#dde4df;min-height:400px;position:relative;overflow:hidden}#canvas{width:100%;height:100%;display:block;touch-action:none}
-.note{position:absolute;left:16px;top:15px;right:16px;max-width:480px;background:#fafbf7e9;border-left:3px solid #55828a;padding:9px 12px;font-size:12px;line-height:1.6}
-#status{position:absolute;left:16px;bottom:16px;max-width:calc(100% - 32px);background:#fafbf7e9;padding:8px 12px;font-size:12px}
-aside{border-left:1px solid #cbd4d0;padding:24px 20px;background:#f7f8f4}h2{font-size:15px;margin:0 0 12px}
-.btns{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}button{min-height:43px;background:white;border:1px solid #b3c2bd;color:#264d52;border-radius:2px;padding:8px 9px;font-size:12px}
-button[aria-pressed=true]{background:#276875;color:white;border-color:#276875}button:hover{border-color:#276875}
-button:focus-visible,a:focus-visible{outline:3px solid #d4a45b;outline-offset:3px}
-.wide{width:100%;margin-top:12px}.metrics{font:12px/1.85 ui-monospace,Consolas,monospace;color:#455c60;margin-top:20px;border-top:1px solid #cbd4d0;padding-top:15px}
-aside p{font-size:12px;line-height:1.75;color:#5b7073}nav a{font-size:12px}
-@media(max-width:800px){main{display:block}#stage{height:58dvh;min-height:340px}aside{border-left:0;border-top:1px solid #cbd4d0;padding:18px}header{padding:13px 15px}.note{font-size:11px}}
-@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
-</style>
-<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script>
-</head><body>
-<header><div><h1>WallPipe AR｜配管モデル</h1><div class="sub">中空管・曲げ管・分岐継手・バルブの3D確認</div></div><nav><a href="./index.html">ARへ戻る</a></nav></header>
-<main><div id="stage"><canvas id="canvas" aria-label="配管を回転できる3Dプレビュー"></canvas>
-<div class="note">ドラッグ：回転　ピンチ／ホイール：拡大縮小。これは仮想設備の教材用3Dモデルで、施工図ではありません。</div>
-<div id="status" role="status" aria-live="polite">3Dモデルを読み込み中…</div></div>
-<aside><h2>設備を切り替える</h2><div class="btns" role="group" aria-label="配管の種類">
-<button data-mode="water" aria-pressed="true">給水</button>
-<button data-mode="air" aria-pressed="false">空調</button>
-<button data-mode="plant" aria-pressed="false">工場</button></div>
-<button id="regenerate" class="wide">別の配管を生成</button>
-<button id="resetView" class="wide">視点を正面に戻す</button>
-<div id="metrics" class="metrics" role="status">接続関係を解析中…</div>
-<p>管は中空の独立メッシュで、曲がり角は曲面エルボです。配管が途切れて見えないよう、バルブ接続位置には独立した3Dバルブを表示しています。流体計算は変更していません。</p>
-<p><a href="./ar-hand.html">空間固定ARで見る</a></p>
-</aside></main>
+<!-- Canonical AR shell. After editing, copy index.html to ar-hand.html. -->
+<html lang="ja" data-preview="true">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f7f8f4">
+<meta name="description" content="仮想の配管を空間に固定し、手やタップでバルブを操作できるAR実験。">
+<title>WallPipe AR｜3Dプレビュー</title>
+<link rel="canonical" href="https://mill-miya.github.io/wallpipe-ar/">
+<link rel="stylesheet" href="./css/ar.css?rev=20261122-ui3">
+<!-- 8th Wall binary: Copyright © 2026 Niantic Spatial, Inc. License: https://github.com/8thwall/engine/blob/main/LICENSE -->
+<script src="https://cdn.jsdelivr.net/npm/@8thwall/xrextras@1/dist/xrextras.js" defer crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@8thwall/engine-binary@1/dist/xr.js" async crossorigin="anonymous" data-preload-chunks="slam"></script>
+</head>
+<body>
+<div id="stage">
+  <canvas id="arCanvas" aria-label="仮想配管とバルブのAR表示"></canvas>
+  <canvas id="handOcclusion" aria-hidden="true"></canvas>
+</div>
+<div id="targetReticle" aria-hidden="true"></div>
+<div id="pointer" aria-hidden="true"></div>
+<div class="app" id="app" data-phase="loading">
+  <header class="topbar">
+    <div class="brand">
+      <a class="maker" href="https://mill-miya.github.io/" target="_blank" rel="noopener noreferrer" aria-label="Mill-Miyaのポートフォリオ（新しいタブ）">
+        <img src="./assets/brand/r-logo-black.svg" width="46" height="46" alt="">
+      </a>
+      <div class="brand-name"><h1>WallPipe AR</h1><span>Mill-Miya</span></div>
+    </div>
+    <a class="return-ar" href="./ar-hand.html">ARへ戻る</a>
+    <a class="preview-link" href="./pipe-preview.html" target="_blank" rel="noopener noreferrer" aria-label="配管の3Dプレビュー（新しいタブ）">3Dプレビュー <span aria-hidden="true">↗︎</span></a>
+  </header>
+
+  <main class="workspace" aria-label="AR操作" tabindex="-1">
+    <div class="camera-hud">
+      <div id="handHud" data-state="idle" aria-hidden="true"></div>
+      <div id="preview" role="status"></div>
+    </div>
+    <div class="console">
+      <div class="dock">
+        <div class="status" data-status="loading" role="status" id="status">
+          <span class="dot" aria-hidden="true"></span><span id="statusText">ARの準備中</span>
+        </div>
+        <p id="info" role="status">カメラを許可して、仮想の配管を空間に配置します。</p>
+        <div class="actions">
+          <button id="quickAction" class="btn primary" type="button" disabled>ARカメラを開始</button>
+          <button id="reset" type="button" class="btn" hidden disabled>配置を解除</button>
+          <button id="collapse" class="btn disclosure" type="button" aria-expanded="false" aria-controls="panel">設定と使い方</button>
+        </div>
+        <noscript><p>ARを使うにはJavaScriptを有効にしてください。</p></noscript>
+      </div>
+
+      <section class="panel" id="panel" aria-label="設定と使い方" hidden>
+        <fieldset id="valveControls" class="section" hidden disabled>
+          <legend>バルブ操作</legend>
+          <label for="valveSelect">操作するバルブ</label>
+          <select id="valveSelect"><option value="0">V-01</option></select>
+          <div class="setting"><label for="opening">開度</label><input id="opening" type="range" min="0" max="100" value="100"><output for="opening" id="openingOut">100%</output></div>
+          <button id="toggle" type="button" class="btn">選択したバルブを閉める</button>
+          <div id="flowSummary" class="readout" role="status"></div>
+        </fieldset>
+        <fieldset class="section">
+          <legend>配管の種類</legend>
+          <div class="grid3" role="group" aria-label="設備の種類">
+            <button class="btn" type="button" data-mode="water" aria-pressed="true">給水</button>
+            <button class="btn" type="button" data-mode="air" aria-pressed="false">空調</button>
+            <button class="btn" type="button" data-mode="plant" aria-pressed="false">工場</button>
+          </div>
+          <button id="regen" type="button" class="btn" disabled>配管を再生成</button>
+        </fieldset>
+        <details>
+          <summary>配置・空間認識</summary>
+          <div class="detail-body">
+            <p id="trackingDetails" class="readout">未開始</p>
+            <div class="grid2" role="group" aria-label="観察方法">
+              <button type="button" class="btn" id="presetExplore" aria-pressed="true">近くで探索</button>
+              <button type="button" class="btn" id="presetOverview" aria-pressed="false">全体を確認</button>
+            </div>
+            <div class="setting"><label for="placeDistance">推定距離</label><input id="placeDistance" type="range" min="0.7" max="3.5" value="1.3" step="0.1"><output id="placeDistanceOut" for="placeDistance">1.3m</output></div>
+            <div class="setting"><label for="placeHeight">高さ</label><input id="placeHeight" type="range" min="-0.6" max="0.6" value="0" step="0.05"><output id="placeHeightOut" for="placeHeight">0cm</output></div>
+            <div class="setting"><label for="placeScale">表示倍率</label><input id="placeScale" type="range" min="0.65" max="2.60" value="1.85" step="0.05"><output id="placeScaleOut" for="placeScale">185%</output></div>
+            <p class="note">推定距離と高さは配置前に調整できます。配置後も表示倍率を変更できます。</p>
+            <button id="rescan" type="button" class="btn" disabled>空間認識をやり直す</button>
+          </div>
+        </details>
+        <details>
+          <summary>手認識</summary>
+          <div class="detail-body">
+            <p id="handState" class="readout" role="status">配管を配置すると手認識を準備します。</p>
+            <div id="handFailureDetails" class="note error" role="status" hidden></div>
+            <button type="button" class="btn" id="handRetry" style="display:none">手認識を再試行</button>
+            <label class="check"><input type="checkbox" id="handOcclusionToggle" checked>手に重なる3D描画を隠す（試験）</label>
+            <div class="select-row"><label for="handTransform">指先の位置補正</label><select id="handTransform">
+              <option value="normal">標準</option><option value="mirror">左右反転</option><option value="cw90">右90°回転</option><option value="ccw90">左90°回転</option><option value="rotate180">180°回転</option>
+            </select></div>
+            <p class="note">指先の目印が実際の手からずれるときに補正します。手とバルブの距離や遮蔽の輪郭は、映像から近似します。</p>
+          </div>
+        </details>
+        <details>
+          <summary>使い方と動作環境</summary>
+          <div class="detail-body">
+            <ol>
+              <li>カメラを許可し、模様のある床や家具をゆっくり映します。</li>
+              <li>＋を壁に向けて配管を配置します。実際の壁や壁内の配管は検知しません。</li>
+              <li>バルブをつまんで回すか、手を約1.4秒かざすと操作できます。タップや開度スライダーでも操作できます。</li>
+            </ol>
+            <p class="note">スマートフォン・タブレット向けです。iPhone・iPadはSafariを推奨します。カメラ映像はアプリ独自のサーバーに送信しません。外部SDKと認識モデルの読み込みには通信が必要です。</p>
+            <a class="text-link" href="./valve-preview.html" target="_blank" rel="noopener noreferrer">バルブの3Dプレビュー ↗︎</a>
+            <a class="text-link" href="./spatial-test.html" target="_blank" rel="noopener noreferrer">Apple端末向けの配置テスト（手操作なし） ↗︎</a>
+            <a class="text-link" href="https://github.com/8thwall/engine/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">XR Engineライセンス ↗︎</a>
+            <p class="note">Copyright © 2026 Niantic Spatial, Inc.</p>
+          </div>
+        </details>
+      </section>
+    </div>
+  </main>
+</div>
 <script src="./js/piping-engine.js"></script>
 <script src="./js/valve-placement.js"></script>
-<script type="module">
-import * as THREE from 'three';
-import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
-import {createPipeAssembly} from './js/pipe-assets.js';
-import {loadValveModel} from './js/valve-assets.js';
-const $=id=>document.getElementById(id),canvas=$('canvas'),stage=$('stage');
-function initPreview(){
- let renderer;
- try{
-  renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'high-performance'});
- }catch{
-  $('status').textContent='WebGLを利用できないため、3Dモデルを表示できません。';
-  $('metrics').hidden=true;
-  stage.querySelector('.note').hidden=true;
-  for(const control of document.querySelectorAll('aside button'))control.disabled=true;
-  return;
- }
-renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));renderer.setClearColor(0xdde4df);
-renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.04;
-const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(42,1,.03,40);
-scene.add(new THREE.HemisphereLight(0xffffff,0x81958e,1.12));scene.add(new THREE.AmbientLight(0xffffff,.42));
-const sun=new THREE.DirectionalLight(0xffffff,1.85);sun.position.set(-1.5,2,3.5);scene.add(sun);
-const fill=new THREE.DirectionalLight(0xcde5ed,.72);fill.position.set(2,-1,2);scene.add(fill);
-const controls=new OrbitControls(camera,canvas);controls.enableDamping=true;controls.dampingFactor=.08;controls.minDistance=.65;controls.maxDistance=6;
-const resetCamera=()=>{camera.position.set(.3,.15,2.75);controls.target.set(0,0,.06);controls.update();};
-resetCamera();let mode='water',seed=15,active=null,seq=0;
-function disposeBundle(bundle){
- if(!bundle)return;
- scene.remove(bundle.root);
- for(const m of bundle.materials||[])m.dispose();
- // Pipe-kit geometries are shared and cached; only valve clones are owned.
- for(const root of bundle.valveRoots||[])root.traverse(obj=>{
-   if(!obj.isMesh)return;
-   obj.geometry.dispose();
-   for(const m of Array.isArray(obj.material)?obj.material:[obj.material])m?.dispose();
- });
-}
-async function attachValveModels(bundle,network,token){
- bundle.valveRoots=[];
- const items=network.valves.map(async(v,i)=>{
-  const fit=window.WallPipeValvePlacement.mounting(network,i);
-  const model=await loadValveModel(fit.type);
-  if(token!==seq){
-    model.root.traverse(obj=>{if(obj.isMesh){obj.geometry.dispose();for(const m of Array.isArray(obj.material)?obj.material:[obj.material])m?.dispose();}});
-    return false;
-  }
-  const mount=new THREE.Group();mount.position.set(fit.x,fit.y,fit.z);
-  mount.rotation.z=fit.rotationZ;
-  mount.scale.set(fit.radialScale,fit.axialScale,fit.radialScale);
-  mount.add(model.root);bundle.root.add(mount);bundle.valveRoots.push(model.root);
-  if(model.disc)model.disc.rotation.z=Math.PI/2;
-  return true;
- });
- const results=await Promise.allSettled(items);
- const failures=results.filter(x=>x.status==='rejected').map(x=>String(x.reason?.message||x.reason).slice(0,170));
- return {count:results.filter(x=>x.status==='fulfilled'&&x.value===true).length,failures};
-}
-async function build(){
- const token=++seq;
- $('status').textContent='配管を生成中…';
- let phase='配管の構成生成',bundle=null;
- try{
-  const n=window.WallPipeEngine.makeNetwork({mode,surface:'wall',seed});
-  phase='配管のGLBモデル生成';
-  bundle=await createPipeAssembly(n,{mode});
-  if(token!==seq){disposeBundle(bundle);return;}
-  phase='バルブGLBの読み込み';
-  const {count:valveCount,failures}=await attachValveModels(bundle,n,token);
-  if(token!==seq){disposeBundle(bundle);return;}
-  disposeBundle(active);
-  active=bundle;scene.add(bundle.root);
-  const t=bundle.stats;
-  const paletteNames={'steel-blue':'青灰鋼管','copper':'銅・黄土','forest':'緑灰鋼管','graphite':'黒鉛灰','safety':'安全色アクセント','cool':'冷色鋼管'};
-  const paletteLabel=paletteNames[n.palette]||'標準';
-  $('status').textContent=valveCount===n.valves.length?
-   '読込完了：'+n.valves.length+'系統、'+paletteLabel+'。回転して接続部を確認できます。':
-   '配管は表示しましたが、バルブ '+valveCount+'/'+n.valves.length+'。'+failures.join(' / ');
-  $('metrics').textContent='直管：'+t.spans+' / 継手：'+t.fittings+
-   '\nエルボ：'+t.elbows+' / T字：'+t.tees+
-   '\nレジューサ：'+t.reducers+' / 支持具：'+t.supports+
-   '\n設備ライン：'+n.valves.length+'本 / バルブ表示：'+valveCount+
-   '\n配色：'+paletteLabel+' / 生成シード：'+seed+
-   '\n構成：'+n.scheme+
-   '\n弁種：'+n.valves.map(v=>({gate:'仕切弁',ball:'ボール弁',butterfly:'バタフライ弁',control:'調節弁'})[v.type]||'一般弁').join(' / ');
- }catch(e){
-  console.error('Pipe preview failed',phase,'seed',seed,e);
-  if(bundle&&token===seq)disposeBundle(bundle);
-  if(token===seq)$('status').textContent=phase+'でエラー（seed '+seed+'）：'+String(e?.message||e).slice(0,180);
- }
-}
-for(const b of document.querySelectorAll('[data-mode]'))b.addEventListener('click',()=>{
- mode=b.dataset.mode;for(const n of document.querySelectorAll('[data-mode]'))n.setAttribute('aria-pressed',String(n===b));seed++;build();
-});
-$('regenerate').addEventListener('click',()=>{seed=(seed+1103515245)>>>0;build();});
-$('resetView').addEventListener('click',resetCamera);
-const resize=()=>{const w=stage.clientWidth,h=stage.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();};
-new ResizeObserver(resize).observe(stage);resize();
-function frame(){requestAnimationFrame(frame);controls.update();renderer.render(scene,camera);}frame();build();
-}
-initPreview();
-</script></body></html>
+<script src="./js/gesture-control.js"></script>
+<script src="./js/hand-screen-map.js"></script>
+<script src="./js/hand-depth-mask.js"></script>
+<script src="./js/flow-visuals.js?rev=20261118-bend1"></script>
+<script src="./js/hand-model-loader.js"></script>
+<script src="./js/tracking-gate.js"></script>
+<script src="./js/ar-shell.js?rev=20261122-ui3" defer></script>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script>
+</body>
+</html>

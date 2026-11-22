@@ -22,9 +22,9 @@ assert(app.includes('PipeAssets.createPipeAssembly(network,{mode})'),'AR must bu
 assert(app.includes('anchor.userData.pipeAssetRoot'),'Pipe kit roots must be tracked for cleanup');
 assert(!app.includes('obj.geometry.dispose();}});anchor.remove(child);'),'No indiscriminate geometry cleanup');
 assert(loader.includes("'tee_reduced_shell'"),'Branch diameter fitting missing');
-assert(home.includes('OrbitControls')&&home.includes('createPipeAssembly'),'Preview must orbit authored meshes');
-assert(home.includes('loadValveModel')&&home.includes('attachValveModels'),'Pipe preview must display real valves instead of disconnected gaps');
-assert(home.includes('AmbientLight')&&home.includes('toneMappingExposure'),'Preview requires ambient fill and calibrated exposure');
+assert(app.includes('OrbitControls')&&app.includes('createPipeAssembly'),'Preview must orbit authored meshes');
+assert(app.includes('loadValveModel')&&app.includes('attachAuthoredValve'),'Pipe preview must display real valves instead of disconnected gaps');
+assert(app.includes('HemisphereLight')&&app.includes('DirectionalLight'),'Preview requires fill and directional lighting');
 assert(loader.includes('computeVertexNormals')&&loader.includes('emissiveIntensity'),'Mobile materials need explicit fallback lighting');
 assert(!loader.includes('metal=.61'),'Avoid high-metalness unlit silhouette without reflection maps');
 assert(loader.includes('makeWaterCutaway(root,cutawayMaterials)'),'Water system uses root-relative front/back cutaway');
