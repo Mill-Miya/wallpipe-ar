@@ -87,6 +87,8 @@ for (const [width,height] of [[1440,900],[820,1180],[768,1024],[390,844],[320,56
     const settings = page.locator('#collapse');
     const verify = async (phase,open) => {
       await page.waitForFunction(phase=>document.querySelector('#app').dataset.phase===phase,phase);
+      // ResizeObserver updates the panel limit after dock text/buttons reflow.
+      await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
       await checkLayout(page,open);
     };
 
