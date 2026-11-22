@@ -12,6 +12,7 @@ let started=false,scene=null,camera=null,anchor=null,video=null,ownedVideo=null,
 let mode='water',network=null,openings=[1,1,1],selected=0,modelReady=false,landmarker=null,loadingHand=false;
 let valves=[],flowDisplay=null,gesture=Gestures.createState(),lastInference=0,lastMessage='',handInitFailed=false,lastVideoTime=-1,lastHandsSeen=0,valveRevision=0,occlusionFault=false,handDepthMask=null,lastMaskUpdate=0,handGeneration=0,handTimer=0,handSampleDelay=230,slowFrames=0,fatalError=false,trackingSlow=false;
 let engineChecked=false,deviceSupported=false,trackingTimeout;
+const desktopPreview=window.WallPipeDesktopPreview===true;
 const trackingGate=TrackingGate.createState();
 const colorByMode={water:0x2b8ea1,air:0x368d74,plant:0xb37a38};
 function state(status,message){if(ui.status.dataset.status!==status||ui.statusText.textContent!==message){ui.status.dataset.status=status;ui.statusText.textContent=message;}}
@@ -117,11 +118,11 @@ function updateQuickAction(){
  ui.quick.hidden=!label||phase==='unsupported';
  if(label && ui.quick.textContent!==label)ui.quick.textContent=label;
  ui.quick.disabled=disabled;
- ui.reset.hidden=phase!=='placed';
+ ui.reset.hidden=phase!=='placed'||desktopPreview;
  ui.valveControls.hidden=!modelReady;
  ui.valveControls.disabled=!modelReady||fatalError;
  ui.collapse.textContent=modelReady?'バルブ・設定':'設定と使い方';
- ui.rescan.hidden=phase==='scanning'&&trackingSlow;
+ ui.rescan.hidden=desktopPreview||(phase==='scanning'&&trackingSlow);
  if(fatalError)ui.rescan.disabled=true;
 }
 function waitForTracking(){
@@ -492,8 +493,8 @@ function checkEngine(){
  updateQuickAction();
  return true;
 }
-window.addEventListener('xrloaded',checkEngine);
-if(!checkEngine())setTimeout(()=>{
+if(!desktopPreview)window.addEventListener('xrloaded',checkEngine);
+if(!desktopPreview&&!checkEngine())setTimeout(()=>{
  if(!checkEngine())failAR('通信を確認して再試行するか、3Dプレビューをご覧ください。');
 },14000);
 ui.distance.addEventListener('input',()=>{ui.distanceOut.textContent=Number(ui.distance.value).toFixed(1)+'m';});
@@ -533,7 +534,60 @@ ui.reset.addEventListener('click',resetPlacement);
 ui.select.addEventListener('change',()=>setSelection(Number(ui.select.value)));
 ui.opening.addEventListener('input',()=>setOpening(selected,Number(ui.opening.value)/100));
 ui.toggle.addEventListener('click',()=>setOpening(selected,openings[selected]>.5?0:1));
-$('regen').addEventListener('click',()=>{if(!anchor||fatalError)return;buildNetwork();info(modelReady?'配管を再生成しました。空間位置は維持しています。':'配管を再生成しました。カメラを起動し配置してください。');});
+$('regen').addEventListener('click',()=>{if(!anchor||fatalError)return;buildNetwork();info(desktopPreview?'配管を再生成しました。バルブをクリック・タップで開閉できます。':modelReady?'配管を再生成しました。空間位置は維持しています。':'配管を再生成しました。カメラを起動し配置してください。');});
 for(const b of document.querySelectorAll('[data-mode]'))b.addEventListener('click',()=>{mode=b.dataset.mode;for(const c of document.querySelectorAll('[data-mode]'))c.setAttribute('aria-pressed',String(c===b));buildNetwork();});
-ui.canvas.addEventListener('pointerup',e=>{if(!modelReady||!tracking)return;const idx=pickValve(e.clientX,e.clientY);if(idx>=0){setSelection(idx);setOpening(idx,openings[idx]>.5?0:1);ui.hand.textContent=`画面タップで V-0${idx+1} を操作しました。`;}});
+let tapStart=null;
+ui.canvas.addEventListener('pointerdown',e=>{tapStart={id:e.pointerId,x:e.clientX,y:e.clientY};});
+ui.canvas.addEventListener('pointermove',e=>{
+ if(tapStart&&Math.hypot(e.clientX-tapStart.x,e.clientY-tapStart.y)>8)tapStart=null;
+});
+ui.canvas.addEventListener('pointercancel',()=>{tapStart=null;});
+ui.canvas.addEventListener('pointerup',e=>{
+ const tap=tapStart;tapStart=null;
+ if(!tap||tap.id!==e.pointerId||!modelReady||!tracking)return;const idx=pickValve(e.clientX,e.clientY);if(idx>=0){setSelection(idx);setOpening(idx,openings[idx]>.5?0:1);ui.hand.textContent=`画面タップで V-0${idx+1} を操作しました。`;}});
 syncControls();updateQuickAction();
+
+async function startDesktopPreview(){
+ const {OrbitControls}=await import('three/addons/controls/OrbitControls.js');
+ const renderer=new THREE.WebGLRenderer({canvas:ui.canvas,antialias:true});
+ renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));
+ renderer.setClearColor(0xe1e7e3);
+ renderer.outputColorSpace=THREE.SRGBColorSpace;
+ scene=new THREE.Scene();
+ camera=new THREE.PerspectiveCamera(45,1,.01,100);
+ camera.position.set(.2,.1,3.4);
+ scene.add(new THREE.HemisphereLight(0xffffff,0x647b72,2));
+ const light=new THREE.DirectionalLight(0xffffff,2);
+ light.position.set(-1,2,3);scene.add(light);
+ anchor=new THREE.Group();scene.add(anchor);
+ const controls=new OrbitControls(camera,ui.canvas);
+ controls.target.set(0,0,.06);controls.enableDamping=true;
+ controls.minDistance=.7;controls.maxDistance=8;
+ function resize(){
+  const rect=ui.canvas.getBoundingClientRect();
+  renderer.setSize(rect.width,rect.height,false);
+  camera.aspect=rect.width/rect.height;camera.updateProjectionMatrix();
+ }
+ window.addEventListener('resize',resize);resize();
+ started=true;tracking=true;modelReady=true;
+ ui.scale.value='1';ui.scaleOut.textContent='100%';
+ ui.app.dataset.preview='true';
+ ui.stage.classList.add('ar-placed');
+ buildNetwork();updateQuickAction();
+ state('ready','3Dプレビュー');
+ info('バルブをクリック・タップで開閉。ドラッグで回転、ホイール・ピンチで拡大できます。');
+ ui.distance.disabled=true;ui.height.disabled=true;
+ ui.presetExplore.disabled=true;ui.presetOverview.disabled=true;
+ ui.occlusionToggle.disabled=true;ui.alignment.disabled=true;
+ ui.hand.textContent='3Dプレビューはクリック・タップで操作できます。';
+ ui.trackingDetails.textContent='3Dプレビュー表示中';
+ renderer.setAnimationLoop(()=>{
+  controls.update();animateFlow();renderer.render(scene,camera);
+ });
+ window.addEventListener('pagehide',()=>{
+  renderer.setAnimationLoop(null);controls.dispose();releaseAnchorResources();renderer.dispose();
+ },{once:true});
+}
+if(desktopPreview)startDesktopPreview().catch(error=>{
+ failAR('3D表示を開始できません。WebGLと通信状況を確認してください。',error);
+});

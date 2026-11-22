@@ -34,6 +34,8 @@ a:hover { color: #092f36; }
   max-height: none !important;
 }
 #stage {
+  z-index: 0;
+  isolation: isolate;
   background-color: #e1e7e3;
   background-image: linear-gradient(#cfd9d4 1px, transparent 1px),
                     linear-gradient(90deg, #cfd9d4 1px, transparent 1px);
@@ -45,6 +47,7 @@ a:hover { color: #092f36; }
 #handOcclusion { display: none !important; }
 
 .app {
+  z-index: 1000;
   position: fixed;
   inset: 0;
   display: grid;
@@ -246,3 +249,7 @@ summary:hover { color: var(--accent); }
   }
   .app[data-phase="placed"] #handHud:not([data-state="error"]) { display: none; }
 }
+
+#targetReticle { z-index: 999; }
+.app[data-preview="true"] #handHud { display: none; }
+.app[data-preview="true"] .preview-link { display: none; }

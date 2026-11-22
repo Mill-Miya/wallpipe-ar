@@ -6,6 +6,7 @@ const browserArgs = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsa
 const launch = () => chromium.launch({headless:true, args:browserArgs});
 
 async function installXRFixture(page, supported = true) {
+  await page.addInitScript(()=>Object.defineProperty(navigator,'userAgent',{value:'iPhone Safari'}));
   // Simulate only 8th Wall's device and tracking callbacks. Three.js, the
   // placement code, generated network and the GLB loaders run normally.
   await page.route('**/xrextras.js', route => route.fulfill({
@@ -28,6 +29,7 @@ async function installXRFixture(page, supported = true) {
         run({canvas,allowedDevices}){
           if (allowedDevices!=='mobile') throw Error('World tracking requires MOBILE');
           window.xrRuns++;
+          canvas.style.zIndex='999';
           scene=new THREE.Scene(); camera=new THREE.PerspectiveCamera(60,canvas.clientWidth/canvas.clientHeight,.01,100);
           const world=modules.at(-1);
           world.onStart();
@@ -168,3 +170,35 @@ try {
 } finally {
   await browser.close();
 }
+
+const desktop=await launch();
+try{
+ const page=await desktop.newPage({viewport:{width:1440,height:900}});
+ const errors=[];
+ page.on('pageerror',e=>errors.push(e.message));
+ await page.addInitScript(()=>{Math.random=()=>.3;});
+ await page.goto(base,{waitUntil:'domcontentloaded'});
+ await page.waitForFunction(()=>document.querySelector('#app').dataset.preview==='true');
+ assert.equal(await page.locator('#quickAction').isVisible(),false);
+ await page.locator('#collapse').click();
+ assert(await page.locator('#valveControls').isVisible());
+ await page.locator('#toggle').click();
+ assert.equal(await page.locator('#opening').inputValue(),'0');
+ await page.locator('#toggle').click();
+ // Project the deterministic first valve's handle using the preview camera.
+ const point=await page.evaluate(()=>{
+  const THREE=window.THREE;
+  const network=window.WallPipeEngine.makeNetwork({mode:'water',surface:'wall',seed:(.3*4294967295)>>>0});
+  const fit=window.WallPipeValvePlacement.mounting(network,0);
+  const camera=new THREE.PerspectiveCamera(45,innerWidth/innerHeight,.01,100);
+  camera.position.set(.2,.1,3.4);camera.lookAt(0,0,.06);camera.updateMatrixWorld();
+  const z={ball:.177,gate:.255,butterfly:.181,control:.250}[fit.type];
+  const p=new THREE.Vector3(fit.x,fit.y,fit.z+z*fit.radialScale).project(camera);
+  return {x:(p.x+1)*innerWidth/2,y:(1-p.y)*innerHeight/2};
+ });
+ await page.mouse.click(point.x,point.y);
+ assert.equal(await page.locator('#opening').inputValue(),'0','Click on the rendered valve must close it');
+ await page.screenshot({path:'/tmp/wallpipe-desktop-interactive.png'});
+ assert.deepEqual(errors,[]);
+ console.log('PASS desktop default 3D, rendered-valve click and slider controls');
+}finally{await desktop.close();}
