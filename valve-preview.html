@@ -24,7 +24,15 @@ import {loadValveModel} from './js/valve-assets.js';
 const holder=document.querySelector('.scene'),status=document.querySelector('#status'),range=document.querySelector('#opening'),value=document.querySelector('#openingValue');
 const scene=new THREE.Scene();scene.background=new THREE.Color('#dfe7e2');
 const camera=new THREE.PerspectiveCamera(39,1,.01,20);camera.position.set(.52,-.70,.62);
-const renderer=new THREE.WebGLRenderer({antialias:true,alpha:false,powerPreference:'low-power'});
+function initPreview(){
+ let renderer;
+ try{
+  renderer=new THREE.WebGLRenderer({antialias:true,alpha:false,powerPreference:'low-power'});
+ }catch{
+  status.textContent='WebGLを利用できないため、3Dモデルを表示できません。';
+  for(const control of document.querySelectorAll('aside button, aside input'))control.disabled=true;
+  return;
+ }
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.outputColorSpace=THREE.SRGBColorSpace;
 holder.prepend(renderer.domElement);
 scene.add(new THREE.HemisphereLight(0xf5f7f5,0x8d9b98,2.4));
@@ -50,5 +58,7 @@ range.addEventListener('input',setOpening);
 function resize(){const w=holder.clientWidth,h=holder.clientHeight;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false);}
 new ResizeObserver(resize).observe(holder);resize();
 function render(){requestAnimationFrame(render);controls.update();renderer.render(scene,camera);}render();switchKind('ball');
+}
+initPreview();
 </script>
 </body></html>

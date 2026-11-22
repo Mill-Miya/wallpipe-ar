@@ -62,3 +62,19 @@ try{
  if(failedRequests.length)console.error('Failed requests',failedRequests.slice(0,10));
  await browser.close();
 }
+
+const browserWithoutWebGL=await chromium.launch({headless:true,args:['--disable-webgl']});
+try{
+ const page=await browserWithoutWebGL.newPage();
+ const errors=[];
+ page.on('pageerror',error=>errors.push(error.message));
+ for(const path of ['pipe-preview.html','valve-preview.html']){
+  await page.goto(process.env.WALLPIPE_TEST_URL ? new URL(path,process.env.WALLPIPE_TEST_URL).href : 'http://127.0.0.1:8765/'+path,{waitUntil:'domcontentloaded'});
+  await page.getByRole('status').filter({hasText:'WebGLを利用できないため'}).waitFor();
+  assert(await page.locator('aside button').first().isDisabled());
+ }
+ assert.deepEqual(errors,[],'Unavailable WebGL must show an explanation without an uncaught exception');
+ console.log('PASS: both 3D previews explain unavailable WebGL');
+}finally{
+ await browserWithoutWebGL.close();
+}

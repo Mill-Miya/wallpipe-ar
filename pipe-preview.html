@@ -44,7 +44,17 @@ import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {createPipeAssembly} from './js/pipe-assets.js';
 import {loadValveModel} from './js/valve-assets.js';
 const $=id=>document.getElementById(id),canvas=$('canvas'),stage=$('stage');
-const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'high-performance'});
+function initPreview(){
+ let renderer;
+ try{
+  renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'high-performance'});
+ }catch{
+  $('status').textContent='WebGLを利用できないため、3Dモデルを表示できません。';
+  $('metrics').hidden=true;
+  stage.querySelector('.note').hidden=true;
+  for(const control of document.querySelectorAll('aside button'))control.disabled=true;
+  return;
+ }
 renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));renderer.setClearColor(0xdde4df);
 renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.04;
 const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(42,1,.03,40);
@@ -126,4 +136,6 @@ $('resetView').addEventListener('click',resetCamera);
 const resize=()=>{const w=stage.clientWidth,h=stage.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();};
 new ResizeObserver(resize).observe(stage);resize();
 function frame(){requestAnimationFrame(frame);controls.update();renderer.render(scene,camera);}frame();build();
+}
+initPreview();
 </script></body></html>
