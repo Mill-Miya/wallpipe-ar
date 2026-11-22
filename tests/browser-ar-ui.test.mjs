@@ -36,7 +36,8 @@ async function installXRFixture(page, supported = true) {
           window.xrCamera=camera;
           const world=modules.at(-1);
           world.onStart();
-          window.xrTrack=()=>{for(let i=0;i<10;i++)world.onUpdate({processCpuResult:{reality:{trackingStatus:'NORMAL'}}});};
+          window.xrTrack=()=>{for(let i=0;i<10;i++)world.onUpdate({processCpuResult:{reality:{trackingStatus:'NORMAL',position:{x:0,y:1.6,z:0}}}});};
+          window.xrMove=(position)=>world.onUpdate({processCpuResult:{reality:{trackingStatus:'NORMAL',position}}});
           window.xrFail=()=>world.onCameraStatusChange({status:'failed'});
         }
       };
@@ -153,16 +154,19 @@ for (const [width,height] of [[1440,900],[820,1180],[768,1024],[390,844],[320,56
       const original=camera.position.clone();
       const target=anchor.getWorldPosition(new THREE.Vector3());
       const front=target.clone().project(camera);
-      camera.position.x+=1;
+      // Inject translation through the SDK callback. The app must apply it.
+      window.xrMove({x:original.x+1,y:original.y,z:original.z});
+      const sdkApplied=camera.position.x===original.x+1;
       camera.rotation.y=Math.PI;
       camera.updateMatrixWorld(true);
       anchor.updateMatrixWorld(true);
       const rear=target.clone().project(camera);
       const after=anchor.matrixWorld.toArray();
       camera.position.copy(original);camera.rotation.set(0,0,0);camera.updateMatrixWorld(true);
-      return {before,after,projectionChanged:front.distanceTo(rear)>0.1};
+      return {before,after,sdkApplied,projectionChanged:front.distanceTo(rear)>0.1};
     });
     assert.deepEqual(worldInvariant.before,worldInvariant.after,'Moving and turning the camera must preserve world anchor coordinates');
+    assert(worldInvariant.sdkApplied,'SDK translation must reach the rendering camera');
     assert(worldInvariant.projectionChanged,'Camera motion must change the projected view');
     assert.equal(await page.locator('#valveControls').isVisible(),true);
     await page.locator('#toggle').click();

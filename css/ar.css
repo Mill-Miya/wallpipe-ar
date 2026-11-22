@@ -268,3 +268,10 @@ summary:hover { color: var(--accent); }
 #forcePlace { flex: 1 1 100%; }
 
 .panel { max-height: var(--panel-space, 40dvh) !important; }
+
+#positionHud {
+  width: fit-content; max-width: 100%; background: var(--paper);
+  padding: 5px 8px; border-left: 3px solid var(--accent);
+  font-size: 12px; line-height: 1.4;
+}
+.app[data-preview="true"] #positionHud { display: none; }

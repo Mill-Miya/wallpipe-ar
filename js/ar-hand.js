@@ -13,6 +13,28 @@ let mode='water',network=null,openings=[1,1,1],selected=0,modelReady=false,landm
 let valves=[],flowDisplay=null,gesture=Gestures.createState(),lastInference=0,lastMessage='',handInitFailed=false,lastVideoTime=-1,lastHandsSeen=0,valveRevision=0,occlusionFault=false,handDepthMask=null,lastMaskUpdate=0,handGeneration=0,handTimer=0,handSampleDelay=230,slowFrames=0,fatalError=false,trackingSlow=false;
 let engineChecked=false,deviceSupported=false,trackingTimeout;
 let forcedPlacement=false;
+let poseOrigin=null,poseRotation=null,lastPoseDisplay=0,maxPoseShift=0,maxPoseTurn=0;
+function syncWorldPosition(reality){
+ const position=reality?.position;
+ const hud=$('positionHud');
+ if(!position||![position.x,position.y,position.z].every(Number.isFinite)){
+  hud.hidden=false;
+  hud.textContent='位置データを待っています';
+  return;
+ }
+ // Apply the SDK's translation to the actual rendering camera each frame.
+ camera.position.set(position.x,position.y,position.z);
+ camera.updateMatrixWorld(true);
+ if(!poseOrigin){poseOrigin=camera.position.clone();poseRotation=camera.quaternion.clone();}
+ maxPoseShift=Math.max(maxPoseShift,camera.position.distanceTo(poseOrigin));
+ maxPoseTurn=Math.max(maxPoseTurn,poseRotation.angleTo(camera.quaternion)*180/Math.PI);
+ if(performance.now()-lastPoseDisplay<300)return;
+ lastPoseDisplay=performance.now();
+ hud.hidden=false;
+ const movement='位置変化 '+Math.round(maxPoseShift*100)+' cm ／ 向き '+Math.round(maxPoseTurn)+'°';
+ hud.textContent=maxPoseShift<.02&&maxPoseTurn>10?movement+'（位置移動は未検出）':movement;
+}
+
 const desktopPreview=window.WallPipeDesktopPreview===true;
 const trackingGate=TrackingGate.createState();
 const colorByMode={water:0x2b8ea1,air:0x368d74,plant:0xb37a38};
@@ -303,6 +325,8 @@ function placeModel(force=false){
  anchor.rotation.set(0,Math.atan2(-flat.x,-flat.z),0);
  anchor.visible=true;anchor.updateMatrixWorld(true);
  ui.reticle.classList.add('is-placed');ui.distance.disabled=true;ui.height.disabled=true;ui.scale.disabled=false;ui.presetExplore.disabled=true;ui.presetOverview.disabled=true;
+ poseOrigin=camera.position.clone();poseRotation=camera.quaternion.clone();
+ maxPoseShift=0;maxPoseTurn=0;lastPoseDisplay=0;
  forcedPlacement=force;clearTimeout(trackingTimeout);
  modelReady=true;ui.stage.classList.add('ar-placed');ui.reset.disabled=false;
  Gestures.reset(gesture);updateQuickAction();
@@ -403,6 +427,7 @@ function pipePipelineModule(){return {
  onStart:()=>{
   releaseAnchorResources();
   modelReady=false;forcedPlacement=false;tracking=false;trackingSlow=false;
+  poseOrigin=null;poseRotation=null;lastPoseDisplay=0;maxPoseShift=0;maxPoseTurn=0;
   trackingGate.good=0;trackingGate.bad=0;trackingGate.stable=false;
   const xrscene=window.XR8.Threejs.xrScene();scene=xrscene.scene;camera=xrscene.camera;
   // XR8 requires a nonzero initial camera height for positional tracking.
@@ -437,6 +462,7 @@ function pipePipelineModule(){return {
  onUpdate:({processCpuResult})=>{
   if(fatalError)return;
   const reality=processCpuResult?.reality;
+  if(camera)syncWorldPosition(reality);
   const status=reality?.trackingStatus||'INITIALIZING';
   const reason=reality?.trackingReason||'UNSPECIFIED';
   const stable=TrackingGate.update(trackingGate,status);
