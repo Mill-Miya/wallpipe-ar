@@ -15,6 +15,20 @@ app.addEventListener('keydown', event => {
   }
 });
 
+function fitPanelHeight() {
+  const workspace = document.querySelector('.workspace');
+  const styles = getComputedStyle(workspace);
+  const available = innerHeight - document.querySelector('.topbar').getBoundingClientRect().height -
+    document.querySelector('.dock').getBoundingClientRect().height -
+    parseFloat(styles.paddingTop) - parseFloat(styles.paddingBottom) - 8;
+  const limit = Math.min(420, innerHeight * (innerWidth <= 600 ? .43 : .56));
+  panel.style.setProperty('--panel-space', Math.max(44, Math.min(limit, available)) + 'px');
+}
+const dockObserver = new ResizeObserver(fitPanelHeight);
+dockObserver.observe(document.querySelector('.dock'));
+dockObserver.observe(document.querySelector('.topbar'));
+window.addEventListener('resize', fitPanelHeight);
+
 async function loadAR() {
   try {
     window.WallPipeDesktopPreview = document.documentElement.dataset.preview==='true' ||
@@ -25,7 +39,7 @@ async function loadAR() {
       import('./valve-assets.js'),
       import('./pipe-assets.js?rev=20261118-bend1')
     ]);
-    await import('./ar-hand.js?rev=20261122-ui3');
+    await import('./ar-hand.js?rev=20261122-ui4');
   } catch (error) {
     app.dataset.phase = 'error';
     document.getElementById('status').dataset.status = 'error';

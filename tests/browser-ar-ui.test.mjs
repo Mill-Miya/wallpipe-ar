@@ -53,7 +53,7 @@ async function checkLayout(page, panelOpen) {
     };
     return {width:innerWidth,height:innerHeight,docWidth:document.documentElement.scrollWidth,
       canvas:bounds('#arCanvas'),header:bounds('.topbar'),panel:bounds('#panel'),dock:bounds('.dock'),
-      controls:['#quickAction','#reset','#collapse'].map(bounds).filter(Boolean)};
+      controls:['#quickAction','#forcePlace','#reset','#collapse'].map(bounds).filter(Boolean)};
   });
   assert.equal(Boolean(layout.panel),panelOpen);
   assert.equal(layout.docWidth,layout.width,'Document should not scroll horizontally');
@@ -115,6 +115,17 @@ for (const [width,height] of [[1440,900],[820,1180],[768,1024],[390,844],[320,56
     assert.equal(await page.evaluate(()=>window.xrRuns),1);
     await settings.click();
     await verify('scanning',false);
+    if (width===390) {
+      await page.locator('#forcePlace').click();
+      await verify('placed',false);
+      await settings.click();
+      await page.locator('#toggle').click();
+      assert.equal(await page.locator('#opening').inputValue(),'0');
+      await page.locator('#toggle').click();
+      await settings.click();
+      await page.locator('#reset').click();
+      await verify('scanning',false);
+    }
     if (width===390) {
       await page.clock.fastForward(12100);
       await page.getByRole('button',{name:'空間認識をやり直す',exact:true}).waitFor();

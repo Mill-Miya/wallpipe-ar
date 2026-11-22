@@ -58,7 +58,7 @@ failIfMissing(['HandDepthMask.create','handDepthMask.update','paintHandOcclusion
 failIfMissing(['goodFrames=10','badFrames=3',"status==='NORMAL'"],trackingGate,'SLAM hysteresis');
 // World placement must be user-triggered: attaching a video alone must not auto-anchor.
 assert(/ui\.quick\.addEventListener\('click',.*if\(tracking\)placeModel\(\)/.test(app));
-assert(/if\(!tracking\|\|!camera\|\|!anchor\)/.test(app));
+assert(app.includes('(!tracking&&!force)||!camera||!anchor||fatalError||!started'));
 assert(/anchor\.visible=false/.test(app));
 let networkCases=0;
 for(const mode of ['water','air','plant']){

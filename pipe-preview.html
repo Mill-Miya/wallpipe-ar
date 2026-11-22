@@ -8,7 +8,7 @@
 <meta name="description" content="仮想の配管を空間に固定し、手やタップでバルブを操作できるAR実験。">
 <title>WallPipe AR｜3Dプレビュー</title>
 <link rel="canonical" href="https://mill-miya.github.io/wallpipe-ar/">
-<link rel="stylesheet" href="./css/ar.css?rev=20261122-ui3">
+<link rel="stylesheet" href="./css/ar.css?rev=20261122-ui4">
 <!-- 8th Wall binary: Copyright © 2026 Niantic Spatial, Inc. License: https://github.com/8thwall/engine/blob/main/LICENSE -->
 <script src="https://cdn.jsdelivr.net/npm/@8thwall/xrextras@1/dist/xrextras.js" defer crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@8thwall/engine-binary@1/dist/xr.js" async crossorigin="anonymous" data-preload-chunks="slam"></script>
@@ -26,7 +26,7 @@
       <a class="maker" href="https://mill-miya.github.io/" target="_blank" rel="noopener noreferrer" aria-label="Mill-Miyaのポートフォリオ（新しいタブ）">
         <img src="./assets/brand/r-logo-black.svg" width="46" height="46" alt="">
       </a>
-      <div class="brand-name"><h1>WallPipe AR</h1><span>Mill-Miya</span></div>
+      <a class="brand-name" href="https://mill-miya.github.io/" target="_blank" rel="noopener noreferrer" aria-label="created by Mill-Miya — ポートフォリオ（新しいタブ）"><h1>WallPipe AR</h1><span>created by Mill-Miya</span></a>
     </div>
     <a class="return-ar" href="./ar-hand.html">ARへ戻る</a>
     <a class="preview-link" href="./pipe-preview.html" target="_blank" rel="noopener noreferrer" aria-label="配管の3Dプレビュー（新しいタブ）">3Dプレビュー <span aria-hidden="true">↗︎</span></a>
@@ -45,6 +45,7 @@
         <p id="info" role="status">カメラを許可して、仮想の配管を空間に配置します。</p>
         <div class="actions">
           <button id="quickAction" class="btn primary" type="button" disabled>ARカメラを開始</button>
+          <button id="forcePlace" class="btn" type="button" hidden>認識を待たずに配置</button>
           <button id="reset" type="button" class="btn" hidden disabled>配置を解除</button>
           <button id="collapse" class="btn disclosure" type="button" aria-expanded="false" aria-controls="panel">設定と使い方</button>
         </div>
@@ -124,7 +125,7 @@
 <script src="./js/flow-visuals.js?rev=20261118-bend1"></script>
 <script src="./js/hand-model-loader.js"></script>
 <script src="./js/tracking-gate.js"></script>
-<script src="./js/ar-shell.js?rev=20261122-ui3" defer></script>
+<script src="./js/ar-shell.js?rev=20261122-ui4" defer></script>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script>
 </body>
 </html>

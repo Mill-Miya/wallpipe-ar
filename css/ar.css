@@ -65,7 +65,8 @@ a:hover { color: #092f36; }
   border-bottom: 1px solid var(--edge);
 }
 .brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.brand-name { white-space: nowrap; }
+.brand-name { white-space: nowrap; min-height: 44px; display: flex; flex-direction: column; justify-content: center; color: var(--ink); text-decoration: none; }
+.brand-name:hover span { text-decoration: underline; }
 .brand-name h1 { font-size: 17px; line-height: 1.15; letter-spacing: -.025em; }
 .brand-name span { color: var(--muted); font-size: 11px; }
 .maker, .preview-link {
@@ -76,7 +77,7 @@ a:hover { color: #092f36; }
 }
 .maker { min-width: 56px; min-height: 56px; border: 1px solid var(--edge); border-radius: 2px; }
 .maker:hover { background: #e4eeea; border-color: var(--accent); }
-.maker img { display: block; width: 46px; height: 46px; }
+.maker img { display: block; width: 46px; height: 46px; transform: scale(1.28); }
 .preview-link { gap: 5px; font-size: 13px; font-weight: 650; white-space: nowrap; }
 .preview-link span { font-size: 15px; }
 
@@ -263,3 +264,7 @@ summary:hover { color: var(--accent); }
 
 .return-ar { display: none; min-height: 44px; align-items: center; font-size: 13px; }
 .app[data-preview="true"] .return-ar { display: flex; }
+
+#forcePlace { flex: 1 1 100%; }
+
+.panel { max-height: var(--panel-space, 40dvh) !important; }
